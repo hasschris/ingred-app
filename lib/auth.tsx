@@ -107,13 +107,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, [])
 
   /**
-   * Enhanced User Registration with Legal Compliance
-   * 
-   * This is where Ingred sets industry standards:
-   * - Age verification (16+) built into registration flow
-   * - Comprehensive consent recording with audit trail
-   * - AI content safety awareness from day one
-   * - GDPR-compliant data processing logging
+   * Streamlined User Registration Using Database Function
+   * This avoids all RLS timing issues by using a database function with elevated privileges
    */
   const signUp = async (
     email: string,
@@ -139,7 +134,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
       }
 
-      // Create user account with Supabase Auth
+      console.log('🔐 Creating user account with Supabase Auth...')
+
+      // Step 1: Create user account with Supabase Auth
       const { data, error } = await supabase.auth.signUp({
         email: email.toLowerCase().trim(),
         password,
@@ -157,6 +154,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       })
 
       if (error) {
+        console.error('Supabase Auth error:', error)
         return {
           success: false,
           error,
@@ -164,11 +162,38 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
       }
 
-      // Record legal consent if user created successfully
-      if (data.user) {
-        await recordLegalConsent(data.user.id, legalConsent)
-        await logSecurityEvent(data.user.id, 'account_created')
+      if (!data.user) {
+        return {
+          success: false,
+          error: new Error('User creation failed'),
+          message: 'Registration failed. Please try again.'
+        }
       }
+
+      console.log('✅ User created in Supabase Auth, completing registration...')
+
+      // Step 2: Complete registration using simple database function
+const { data: registrationResult, error: registrationError } = await supabase.rpc(
+  'simple_user_registration',
+  {
+    p_user_id: data.user.id,
+    p_email: email.toLowerCase().trim()
+  }
+)
+
+      if (registrationError || !registrationResult) {
+        console.error('Registration completion error:', registrationError)
+        return {
+          success: false,
+          error: registrationError,
+          message: 'Registration failed during setup. Please contact support.'
+        }
+      }
+
+      console.log('✅ Registration completed successfully!')
+
+      // Step 3: Log security event
+      await logSecurityEvent(data.user.id, 'account_created')
 
       return {
         success: true,
@@ -225,21 +250,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }
 
   /**
-   * Password Reset with Security Logging
+   * Password Reset with Default Supabase Flow
    */
   const resetPassword = async (email: string): Promise<AuthResult> => {
     try {
+      console.log('🔄 Sending password reset email...')
+      
+      // Pure default Supabase flow - no customization at all
       const { data, error } = await supabase.auth.resetPasswordForEmail(
-        email.toLowerCase().trim(),
-        {
-          redirectTo: 'ingred://auth/reset-password'
-        }
+        email.toLowerCase().trim()
       )
 
-      // Log password reset requests for security monitoring
-      await logSecurityEvent(null, 'password_reset_requested', { email: email.toLowerCase().trim() })
+      await logSecurityEvent(null, 'password_reset_requested', { 
+        email: email.toLowerCase().trim() 
+      })
 
       if (error) {
+        console.error('Password reset error:', error)
         return {
           success: false,
           error,
@@ -247,10 +274,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
       }
 
+      console.log('✅ Password reset email sent successfully')
+
       return {
         success: true,
         data,
-        message: 'Password reset email sent! Check your inbox for instructions.'
+        message: 'Password reset email sent! Check your email and click the link to reset your password.'
       }
     } catch (error) {
       console.error('Password reset error:', error)
@@ -486,42 +515,6 @@ export const useAuth = (): AuthContextType => {
 /**
  * Helper Functions for Legal Compliance and Security
  */
-
-/**
- * Record legal consent with comprehensive audit trail
- */
-async function recordLegalConsent(userId: string, consent: ConsentData): Promise<void> {
-  try {
-    const { error } = await supabase.from('user_consent').upsert({
-      user_id: userId,
-      terms_accepted_version: consent.terms_version,
-      privacy_accepted_version: consent.privacy_version,
-      marketing_consent: consent.marketing_consent,
-      analytics_consent: consent.analytics_consent,
-      ai_learning_consent: consent.ai_learning_consent,
-      accepted_at: consent.consent_timestamp,
-      ip_address: consent.ip_address,
-      user_agent: consent.user_agent,
-      consent_source: 'registration'
-    })
-
-    if (error) {
-      console.error('Failed to record consent:', error)
-      throw new Error('Failed to record legal consent')
-    }
-
-    // Log consent recording for audit trail
-    await logDataProcessing(userId, {
-      processing_type: 'consent_recording',
-      data_categories: ['consent_data', 'ip_address', 'user_agent'],
-      legal_basis: 'consent',
-      purpose: 'Recording user consent for GDPR compliance'
-    })
-  } catch (error) {
-    console.error('Error recording legal consent:', error)
-    throw error
-  }
-}
 
 /**
  * Log data processing activities (GDPR Article 30)

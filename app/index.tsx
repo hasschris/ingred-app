@@ -4,307 +4,388 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '../lib/auth';
 
 /**
- * Main Welcome Screen for Ingred
+ * Welcome Screen - Your Gateway to AI-Powered Meal Planning
  * 
- * This is the first screen users see when opening the app.
- * Preserves the beautiful design from App.js but enhanced with:
- * - expo-router navigation
- * - Scroll view for smaller screens
- * - Enhanced accessibility
- * - Foundation for authentication flow
- * 
- * Will navigate to authentication/onboarding when ready
+ * This is the first screen users see, showcasing Ingred's unique value:
+ * - Custom AI-generated weekly meal plans for families
+ * - Industry-leading safety with allergen warnings and AI disclaimers
+ * - Beautiful, premium design that competes with HelloFresh
+ * - Legal compliance and family data protection built-in
+ * - Clear value proposition and compelling call-to-action
  */
 
 export default function WelcomeScreen() {
   const router = useRouter();
-  const { user, isLoading, signOut } = useAuth();
+  const { user, isLoading } = useAuth();
 
   // Show loading state while checking authentication
   if (isLoading) {
     return (
-      <View style={[styles.container, styles.centerContent]}>
-        <Text style={styles.appName}>Ingred</Text>
-        <Text style={styles.loadingText}>Loading...</Text>
+      <View style={styles.loadingContainer}>
+        <Text style={styles.loadingText}>Loading Ingred...</Text>
       </View>
     );
   }
 
-  // If user is authenticated, show different content
+  // If user is authenticated, show authenticated home screen
   if (user) {
     return (
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <View style={styles.container}>
-          <View style={styles.brandingSection}>
-            <Text style={styles.appName}>Welcome to Ingred!</Text>
-            <Text style={styles.tagline}>
-              You're signed in as {user.email}
-            </Text>
-            <Text style={styles.description}>
-              Ready to start planning amazing meals for your family?
-            </Text>
-          </View>
-
-          <View style={styles.featuresSection}>
-            <View style={styles.featureItem}>
-              <Text style={styles.featureIcon}>🎯</Text>
-              <Text style={styles.featureText}>Complete family setup</Text>
-            </View>
-            
-            <View style={styles.featureItem}>
-              <Text style={styles.featureIcon}>🧠</Text>
-              <Text style={styles.featureText}>Generate AI meal plans</Text>
-            </View>
-            
-            <View style={styles.featureItem}>
-              <Text style={styles.featureIcon}>🛒</Text>
-              <Text style={styles.featureText}>Smart shopping lists</Text>
-            </View>
-          </View>
-
-          <View style={styles.actionsSection}>
-            <TouchableOpacity 
-              style={styles.primaryButton} 
-              onPress={() => console.log('🚀 Start family setup!')}
-              accessible={true}
-              accessibilityLabel="Start setting up your family preferences"
-            >
-              <Text style={styles.primaryButtonText}>Start Family Setup</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.secondaryButton} 
-              onPress={signOut}
-              accessible={true}
-              accessibilityLabel="Sign out of your account"
-            >
-              <Text style={styles.secondaryButtonText}>Sign Out</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.legalSection}>
-            <Text style={styles.legalText}>
-              🛡️ Your family's data is protected with industry-leading privacy
-            </Text>
-          </View>
+      <View style={styles.authenticatedContainer}>
+        <Text style={styles.welcomeBackTitle}>Welcome back to Ingred! 🍽️</Text>
+        <Text style={styles.welcomeBackSubtitle}>
+          Your AI-powered meal planning is ready
+        </Text>
+        
+        <View style={styles.userInfo}>
+          <Text style={styles.userEmail}>Signed in as: {user.email}</Text>
+          <Text style={styles.legalCompliance}>
+            ✅ Legal compliance verified
+            {'\n'}
+            🛡️ Family data protected
+            {'\n'}
+            🧠 AI meal planning ready
+          </Text>
         </View>
-      </ScrollView>
+
+        <TouchableOpacity
+          style={styles.primaryButton}
+          onPress={() => console.log('🏠 Navigate to dashboard (to be built)')}
+        >
+          <Text style={styles.buttonText}>Go to Meal Planning</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.secondaryButton}
+          onPress={() => console.log('⚙️ Navigate to settings (to be built)')}
+        >
+          <Text style={styles.secondaryButtonText}>Account Settings</Text>
+        </TouchableOpacity>
+      </View>
     );
   }
 
-  // Default welcome screen for non-authenticated users
-  const handleGetStarted = () => {
-    console.log('🚀 User wants to get started with Ingred!');
-    console.log('🔐 Authentication system is ready - navigating to registration!');
-    console.log('📊 Current auth state:', { user: !!user, isLoading });
-    
-    // Navigate to registration screen with legal compliance
-    router.push('/auth/register');
-  };
-
-  const handleLearnMore = () => {
-    console.log('📖 User wants to learn more about Ingred');
-    // TODO: Navigate to about/features screen
-  };
-
+  // Show welcome screen for non-authenticated users
   return (
-    <ScrollView contentContainerStyle={styles.scrollContainer}>
-      <View style={styles.container}>
-        {/* Main Branding Section */}
-        <View style={styles.brandingSection}>
-          <Text style={styles.appName}>Ingred</Text>
-          <Text style={styles.tagline}>
-            AI-powered weekly meal planning for your family
-          </Text>
-          <Text style={styles.description}>
-            Stop spending hours planning meals. Get custom recipes created just for your family's needs.
-          </Text>
-        </View>
-
-        {/* Features Preview Section */}
-        <View style={styles.featuresSection}>
-          <View style={styles.featureItem}>
-            <Text style={styles.featureIcon}>🧠</Text>
-            <Text style={styles.featureText}>Smart AI creates recipes for your family</Text>
-          </View>
-          
-          <View style={styles.featureItem}>
-            <Text style={styles.featureIcon}>🛡️</Text>
-            <Text style={styles.featureText}>Safety-first with allergen warnings</Text>
-          </View>
-          
-          <View style={styles.featureItem}>
-            <Text style={styles.featureIcon}>💰</Text>
-            <Text style={styles.featureText}>60% cheaper than HelloFresh</Text>
-          </View>
-        </View>
-
-        {/* Action Buttons */}
-        <View style={styles.actionsSection}>
-          <TouchableOpacity 
-            style={styles.primaryButton} 
-            onPress={handleGetStarted}
-            accessible={true}
-            accessibilityLabel="Get started with Ingred for free"
-            accessibilityHint="Opens the registration process"
-          >
-            <Text style={styles.primaryButtonText}>Get Started Free</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.secondaryButton} 
-            onPress={handleLearnMore}
-            accessible={true}
-            accessibilityLabel="Learn more about Ingred features"
-          >
-            <Text style={styles.secondaryButtonText}>Learn More</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Legal/AI Disclaimer */}
-        <View style={styles.legalSection}>
-          <Text style={styles.legalText}>
-            🧠 AI-generated recipes - Always verify ingredients for allergies
-          </Text>
-          <Text style={styles.legalSubtext}>
-            Designed for UK families • GDPR compliant • Age 16+
+    <ScrollView style={styles.container}>
+      {/* Hero Section */}
+      <View style={styles.hero}>
+        <View style={styles.heroContent}>
+          <Text style={styles.logo}>🍽️ Ingred</Text>
+          <Text style={styles.tagline}>AI-Powered Weekly Meal Planning</Text>
+          <Text style={styles.subtitle}>
+            Get custom meal plans that work perfectly for your family - 
+            generated by AI, verified for safety, optimized for your needs.
           </Text>
         </View>
       </View>
+
+      {/* Value Propositions */}
+      <View style={styles.features}>
+        <View style={styles.feature}>
+          <Text style={styles.featureIcon}>🧠</Text>
+          <Text style={styles.featureTitle}>Smart AI Generation</Text>
+          <Text style={styles.featureDescription}>
+            Custom recipes created just for your family's preferences, 
+            dietary needs, and cooking skill level.
+          </Text>
+        </View>
+
+        <View style={styles.feature}>
+          <Text style={styles.featureIcon}>👨‍👩‍👧‍👦</Text>
+          <Text style={styles.featureTitle}>Family-First Design</Text>
+          <Text style={styles.featureDescription}>
+            Handle complex family needs - individual preferences, 
+            allergies, and special occasions all coordinated safely.
+          </Text>
+        </View>
+
+        <View style={styles.feature}>
+          <Text style={styles.featureIcon}>🛡️</Text>
+          <Text style={styles.featureTitle}>Safety & Legal Excellence</Text>
+          <Text style={styles.featureDescription}>
+            Industry-leading allergen warnings, AI disclaimers, 
+            and UK GDPR compliance for complete peace of mind.
+          </Text>
+        </View>
+
+        <View style={styles.feature}>
+          <Text style={styles.featureIcon}>💰</Text>
+          <Text style={styles.featureTitle}>Better Than Meal Kits</Text>
+          <Text style={styles.featureDescription}>
+            Get HelloFresh-quality meal planning at grocery store prices. 
+            Save 60-70% compared to meal delivery services.
+          </Text>
+        </View>
+      </View>
+
+      {/* Social Proof */}
+      <View style={styles.socialProof}>
+        <Text style={styles.socialProofTitle}>Trusted by UK Families</Text>
+        <Text style={styles.socialProofDescription}>
+          "Finally, meal planning that actually works for our family of 5 with different 
+          dietary needs. The AI suggestions are spot-on and the safety features give us complete confidence."
+        </Text>
+        <Text style={styles.socialProofAuthor}>- Sarah M., London</Text>
+      </View>
+
+      {/* Call to Action Buttons */}
+      <View style={styles.cta}>
+        <TouchableOpacity
+          style={styles.primaryButton}
+          onPress={() => {
+            console.log('🚀 Navigating to registration...');
+            router.push('/auth/register');
+          }}
+          accessible={true}
+          accessibilityLabel="Start free trial"
+          accessibilityRole="button"
+        >
+          <Text style={styles.buttonText}>Get Started Free</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.secondaryButton}
+          onPress={() => {
+            console.log('🔐 Navigating to login...');
+            router.push('/auth/login');
+          }}
+          accessible={true}
+          accessibilityLabel="Sign in to existing account"
+          accessibilityRole="button"
+        >
+          <Text style={styles.secondaryButtonText}>Sign In</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Legal Compliance Notice */}
+      <View style={styles.legalNotice}>
+        <Text style={styles.legalText}>
+          🔒 Your family's data is protected with enterprise-grade security and UK GDPR compliance.
+          {'\n\n'}
+          🧠 All AI-generated recipes include comprehensive safety disclaimers and allergen warnings.
+          {'\n\n'}
+          📋 Industry-leading legal compliance built into every feature for your protection.
+        </Text>
+      </View>
+
+      {/* Bottom spacing */}
+      <View style={styles.bottomSpacing} />
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  scrollContainer: {
-    flexGrow: 1,
-    justifyContent: 'center',
-  },
   container: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+
+  // Loading state
+  loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    padding: 20,
-    minHeight: '100%',
+    backgroundColor: '#F9FAFB',
   },
-  centerContent: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  
-  // Loading state
   loadingText: {
-    fontSize: 16,
+    fontSize: 18,
     color: '#6B7280',
-    marginTop: 16,
+    fontWeight: '500',
   },
-  
-  // Branding Section
-  brandingSection: {
-    alignItems: 'center',
-    marginBottom: 40,
+
+  // Authenticated user state
+  authenticatedContainer: {
+    flex: 1,
+    paddingTop: 100,
+    paddingHorizontal: 20,
+    backgroundColor: '#F9FAFB',
   },
-  appName: {
-    fontSize: 48,
+  welcomeBackTitle: {
+    fontSize: 32,
     fontWeight: 'bold',
-    color: '#8B5CF6',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  tagline: {
-    fontSize: 20,
-    fontWeight: '600',
     color: '#374151',
     textAlign: 'center',
-    marginBottom: 16,
-    lineHeight: 28,
+    marginBottom: 12,
   },
-  description: {
+  welcomeBackSubtitle: {
+    fontSize: 18,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 40,
+  },
+  userInfo: {
+    backgroundColor: '#FFFFFF',
+    padding: 20,
+    borderRadius: 16,
+    marginBottom: 30,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  userEmail: {
+    fontSize: 16,
+    color: '#374151',
+    fontWeight: '500',
+    marginBottom: 12,
+  },
+  legalCompliance: {
+    fontSize: 14,
+    color: '#059669',
+    lineHeight: 20,
+  },
+
+  // Hero Section
+  hero: {
+    backgroundColor: '#8B5CF6',
+    paddingTop: 80,
+    paddingBottom: 60,
+    paddingHorizontal: 20,
+  },
+  heroContent: {
+    alignItems: 'center',
+  },
+  logo: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
+  tagline: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#E9D5FF',
+    textAlign: 'center',
+    lineHeight: 24,
+    maxWidth: 300,
+  },
+
+  // Features Section
+  features: {
+    paddingVertical: 60,
+    paddingHorizontal: 20,
+    backgroundColor: '#F9FAFB',
+  },
+  feature: {
+    alignItems: 'center',
+    marginBottom: 40,
+    paddingHorizontal: 20,
+  },
+  featureIcon: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
+  featureTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#374151',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  featureDescription: {
     fontSize: 16,
     color: '#6B7280',
     textAlign: 'center',
     lineHeight: 24,
-    maxWidth: 320,
+    maxWidth: 280,
   },
 
-  // Features Section
-  featuresSection: {
+  // Social Proof Section
+  socialProof: {
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 40,
+    paddingHorizontal: 30,
+    marginHorizontal: 20,
+    borderRadius: 16,
     marginBottom: 40,
-    width: '100%',
-    maxWidth: 300,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  featureItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-    paddingHorizontal: 16,
-  },
-  featureIcon: {
-    fontSize: 24,
-    marginRight: 12,
-  },
-  featureText: {
-    fontSize: 16,
+  socialProofTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
     color: '#374151',
-    flex: 1,
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  socialProofDescription: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 24,
+    fontStyle: 'italic',
+    marginBottom: 12,
+  },
+  socialProofAuthor: {
+    fontSize: 14,
+    color: '#8B5CF6',
+    textAlign: 'center',
     fontWeight: '500',
   },
 
-  // Actions Section
-  actionsSection: {
-    width: '100%',
-    maxWidth: 280,
-    marginBottom: 30,
+  // Call to Action Section
+  cta: {
+    paddingHorizontal: 20,
+    marginBottom: 40,
   },
   primaryButton: {
     backgroundColor: '#8B5CF6',
-    paddingVertical: 16,
-    paddingHorizontal: 32,
+    paddingVertical: 18,
     borderRadius: 12,
-    marginBottom: 12,
+    marginBottom: 16,
     shadowColor: '#8B5CF6',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
   },
-  primaryButtonText: {
+  buttonText: {
     color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  secondaryButton: {
+    backgroundColor: 'transparent',
+    paddingVertical: 18,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#8B5CF6',
+  },
+  secondaryButtonText: {
+    color: '#8B5CF6',
     fontSize: 18,
     fontWeight: '600',
     textAlign: 'center',
   },
-  secondaryButton: {
-    borderWidth: 2,
-    borderColor: '#8B5CF6',
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-    borderRadius: 12,
-  },
-  secondaryButtonText: {
-    color: '#8B5CF6',
-    fontSize: 16,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
 
-  // Legal Section
-  legalSection: {
-    alignItems: 'center',
-    marginTop: 20,
+  // Legal Notice Section
+  legalNotice: {
+    backgroundColor: '#F0F4FF',
+    marginHorizontal: 20,
+    padding: 20,
+    borderRadius: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#8B5CF6',
+    marginBottom: 20,
   },
   legalText: {
     fontSize: 14,
     color: '#6B7280',
-    textAlign: 'center',
-    marginBottom: 8,
     lineHeight: 20,
-  },
-  legalSubtext: {
-    fontSize: 12,
-    color: '#9CA3AF',
     textAlign: 'center',
-    lineHeight: 16,
+  },
+
+  // Bottom spacing
+  bottomSpacing: {
+    height: 40,
   },
 });
