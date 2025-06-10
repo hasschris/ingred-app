@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../lib/auth';
+import { supabase } from '../lib/supabase';
 
 /**
  * Welcome Screen - Your Gateway to AI-Powered Meal Planning
@@ -17,6 +18,19 @@ import { useAuth } from '../lib/auth';
 export default function WelcomeScreen() {
   const router = useRouter();
   const { user, isLoading } = useAuth();
+
+  // TEMPORARY: Test database connection
+React.useEffect(() => {
+  const testConnection = async () => {
+    try {
+      const { data, error } = await supabase.from('user_profiles').select('count');
+      console.log('🔌 Database connection test:', { data, error });
+    } catch (err) {
+      console.log('🔌 Database connection failed:', err);
+    }
+  };
+  testConnection();
+}, []);
 
   // Show loading state while checking authentication
   if (isLoading) {

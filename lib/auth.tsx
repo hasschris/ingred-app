@@ -173,13 +173,24 @@ export function AuthProvider({ children }: AuthProviderProps) {
       console.log('✅ User created in Supabase Auth, completing registration...')
 
       // Step 2: Complete registration using database function
-      const { data: registrationResult, error: registrationError } = await supabase.rpc(
-        'simple_user_registration',
-        {
-          p_user_id: data.user.id,
-          p_email: email.toLowerCase().trim()
-        }
-      )
+console.log('🔧 Calling simple_user_registration with:', {
+  p_user_id: data.user.id,
+  p_email: email.toLowerCase().trim()
+});
+
+const { data: registrationResult, error: registrationError } = await supabase.rpc(
+  'simple_user_registration',
+  {
+    p_user_id: data.user.id,
+    p_email: email.toLowerCase().trim()
+  }
+)
+
+console.log('🔧 Function response:', {
+  registrationResult,
+  registrationError,
+  typeof_result: typeof registrationResult
+});
 
       if (registrationError || !registrationResult) {
         console.error('Registration completion error:', registrationError)
