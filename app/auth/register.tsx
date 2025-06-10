@@ -60,6 +60,15 @@ export default function RegisterScreen() {
     return { valid: true };
   };
 
+  // Show terms and privacy modal
+  const showTermsAndPrivacy = () => {
+    Alert.alert(
+      'Terms & Privacy Agreement',
+      'About Ingred:\n\nIngred uses artificial intelligence to create personalised meal plans for your family.\n\nYour Rights:\n• You must be 16 or older to use this app\n• Your family\'s data is protected with industry-leading security\n• We use OpenAI to generate recipes based on your preferences\n• You can export or delete your data at any time\n\nSafety:\n• Always verify ingredients for allergies\n• AI suggestions are not medical advice\n• Check ingredient labels for safety\n\nBy continuing, you agree to our terms and privacy policy.',
+      [{ text: 'I Understand', style: 'default' }]
+    );
+  };
+
   // Handle registration with comprehensive legal compliance
   const handleRegistration = async () => {
     const validation = validateForm();
@@ -97,8 +106,8 @@ export default function RegisterScreen() {
             { 
               text: 'OK', 
               onPress: () => {
-                console.log('✅ Registration successful - redirecting to verification');
-                router.back(); // Return to welcome screen
+                console.log('✅ Registration successful - redirecting to login');
+                router.push('/auth/login'); // Navigate to login instead of back
               }
             }
           ]
@@ -221,7 +230,7 @@ export default function RegisterScreen() {
           </View>
           <View style={styles.termsTextContainer}>
             <Text style={styles.checkboxText}>I agree to </Text>
-            <TouchableOpacity onPress={() => console.log('📋 Show Terms & Privacy')}>
+            <TouchableOpacity onPress={showTermsAndPrivacy}>
               <Text style={styles.linkText}>Ingred's Terms & Privacy Agreement</Text>
             </TouchableOpacity>
           </View>
@@ -274,7 +283,7 @@ export default function RegisterScreen() {
       {/* Sign In Link */}
       <TouchableOpacity
         style={styles.linkButton}
-        onPress={() => console.log('🔐 Navigate to sign in')}
+        onPress={() => router.push('/auth/login')}
         accessible={true}
         accessibilityLabel="Go to sign in"
       >

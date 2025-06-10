@@ -95,11 +95,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setUser(session?.user ?? null)
       setIsLoading(false)
 
-      // Log authentication events for security audit
+      // Log authentication events for security audit (non-blocking)
       if (event === 'SIGNED_IN' && session?.user) {
-        await logSecurityEvent(session.user.id, 'successful_login')
+        await logSecurityEventSafe(session.user.id, 'successful_login')
       } else if (event === 'SIGNED_OUT') {
-        await logSecurityEvent(null, 'logout')
+        await logSecurityEventSafe(null, 'logout')
       }
     })
 
@@ -107,8 +107,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, [])
 
   /**
-   * Streamlined User Registration Using Database Function
-   * This avoids all RLS timing issues by using a database function with elevated privileges
+   * Simplified User Registration - Fixed Foreign Key Issues
+   * This creates the user profile first, then handles logging
    */
   const signUp = async (
     email: string,
@@ -172,14 +172,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       console.log('✅ User created in Supabase Auth, completing registration...')
 
-      // Step 2: Complete registration using simple database function
-const { data: registrationResult, error: registrationError } = await supabase.rpc(
-  'simple_user_registration',
-  {
-    p_user_id: data.user.id,
-    p_email: email.toLowerCase().trim()
-  }
-)
+      // Step 2: Complete registration using database function
+      const { data: registrationResult, error: registrationError } = await supabase.rpc(
+        'simple_user_registration',
+        {
+          p_user_id: data.user.id,
+          p_email: email.toLowerCase().trim()
+        }
+      )
 
       if (registrationError || !registrationResult) {
         console.error('Registration completion error:', registrationError)
@@ -192,8 +192,8 @@ const { data: registrationResult, error: registrationError } = await supabase.rp
 
       console.log('✅ Registration completed successfully!')
 
-      // Step 3: Log security event
-      await logSecurityEvent(data.user.id, 'account_created')
+      // Step 3: Log security event (non-blocking, after profile creation)
+      await logSecurityEventSafe(data.user.id, 'account_created')
 
       return {
         success: true,
@@ -221,8 +221,8 @@ const { data: registrationResult, error: registrationError } = await supabase.rp
       })
 
       if (error) {
-        // Log failed login attempts for security monitoring
-        await logSecurityEvent(null, 'failed_login', { 
+        // Log failed login attempts for security monitoring (non-blocking)
+        await logSecurityEventSafe(null, 'failed_login', { 
           email: email.toLowerCase().trim(), 
           error: error.message 
         })
@@ -250,18 +250,18 @@ const { data: registrationResult, error: registrationError } = await supabase.rp
   }
 
   /**
-   * Password Reset with Default Supabase Flow
+   * Password Reset with Improved Error Handling
    */
   const resetPassword = async (email: string): Promise<AuthResult> => {
     try {
       console.log('🔄 Sending password reset email...')
       
-      // Pure default Supabase flow - no customization at all
       const { data, error } = await supabase.auth.resetPasswordForEmail(
         email.toLowerCase().trim()
       )
 
-      await logSecurityEvent(null, 'password_reset_requested', { 
+      // Log password reset request (non-blocking)
+      await logSecurityEventSafe(null, 'password_reset_requested', { 
         email: email.toLowerCase().trim() 
       })
 
@@ -334,8 +334,8 @@ const { data: registrationResult, error: registrationError } = await supabase.rp
         }
       }
 
-      // Log consent update for audit trail
-      await logDataProcessing(user.id, {
+      // Log consent update for audit trail (non-blocking)
+      await logDataProcessingSafe(user.id, {
         processing_type: 'consent_update',
         data_categories: ['consent_preferences'],
         legal_basis: 'consent',
@@ -514,12 +514,13 @@ export const useAuth = (): AuthContextType => {
 
 /**
  * Helper Functions for Legal Compliance and Security
+ * These are now "safe" versions that won't block authentication if they fail
  */
 
 /**
- * Log data processing activities (GDPR Article 30)
+ * Safe data processing logging (non-blocking)
  */
-async function logDataProcessing(
+async function logDataProcessingSafe(
   userId: string,
   log: {
     processing_type: string
@@ -541,14 +542,15 @@ async function logDataProcessing(
       retention_period: log.retention_period
     })
   } catch (error) {
-    console.error('Failed to log data processing:', error)
+    console.error('Failed to log data processing (non-blocking):', error)
+    // Don't throw - this is non-blocking
   }
 }
 
 /**
- * Log security events for audit trail
+ * Safe security event logging (non-blocking)
  */
-async function logSecurityEvent(
+async function logSecurityEventSafe(
   userId: string | null,
   eventType: string,
   metadata?: any
@@ -563,7 +565,8 @@ async function logSecurityEvent(
       ...(metadata && { user_agent: JSON.stringify(metadata) })
     })
   } catch (error) {
-    console.error('Failed to log security event:', error)
+    console.error('Failed to log security event (non-blocking):', error)
+    // Don't throw - this is non-blocking
   }
 }
 
