@@ -29,6 +29,10 @@
       "favicon": "./assets/favicon.png",
       "bundler": "metro"
     },
+    "plugins": [
+      "expo-router"
+    ],
+    "scheme": "ingred",
     "description": "AI-powered weekly meal planning for UK families with industry-leading safety and legal compliance."
   }
 }
