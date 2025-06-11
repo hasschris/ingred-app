@@ -107,8 +107,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, [])
 
   /**
-   * Simplified User Registration - Fixed Foreign Key Issues
-   * This creates the user profile first, then handles logging
+   * Fixed User Registration - Now with proper JSON response handling
    */
   const signUp = async (
     email: string,
@@ -173,26 +172,27 @@ export function AuthProvider({ children }: AuthProviderProps) {
       console.log('✅ User created in Supabase Auth, completing registration...')
 
       // Step 2: Complete registration using database function
-console.log('🔧 Calling simple_user_registration with:', {
-  p_user_id: data.user.id,
-  p_email: email.toLowerCase().trim()
-});
+      console.log('🔧 Calling simple_user_registration with:', {
+        p_user_id: data.user.id,
+        p_email: email.toLowerCase().trim()
+      });
 
-const { data: registrationResult, error: registrationError } = await supabase.rpc(
-  'simple_user_registration',
-  {
-    p_user_id: data.user.id,
-    p_email: email.toLowerCase().trim()
-  }
-)
+      const { data: registrationResult, error: registrationError } = await supabase.rpc(
+        'simple_user_registration',
+        {
+          p_user_id: data.user.id,
+          p_email: email.toLowerCase().trim()
+        }
+      )
 
-console.log('🔧 Function response:', {
-  registrationResult,
-  registrationError,
-  typeof_result: typeof registrationResult
-});
+      console.log('🔧 Function response:', {
+        registrationResult,
+        registrationError,
+        typeof_result: typeof registrationResult
+      });
 
-      if (registrationError || !registrationResult) {
+      // Handle the JSON response from the function
+      if (registrationError) {
         console.error('Registration completion error:', registrationError)
         return {
           success: false,
@@ -201,9 +201,29 @@ console.log('🔧 Function response:', {
         }
       }
 
-      console.log('✅ Registration completed successfully!')
+      // Parse the JSON response
+      if (!registrationResult || !registrationResult.success) {
+        const errorMessage = registrationResult?.error || 'Registration failed during profile creation'
+        console.error('Registration failed:', errorMessage)
+        return {
+          success: false,
+          error: new Error(errorMessage),
+          message: 'Registration failed during setup. Please try again.'
+        }
+      }
 
-      // Step 3: Log security event (non-blocking, after profile creation)
+      console.log('✅ Registration completed successfully!', registrationResult)
+
+      // Step 3: Record consent (non-blocking)
+      try {
+        await recordUserConsent(data.user.id, legalConsent)
+        console.log('✅ Legal consent recorded successfully!')
+      } catch (consentError) {
+        console.warn('⚠️ Consent recording failed (non-blocking):', consentError)
+        // Don't fail registration if consent recording fails
+      }
+
+      // Step 4: Log security event (non-blocking)
       await logSecurityEventSafe(data.user.id, 'account_created')
 
       return {
@@ -521,6 +541,30 @@ export const useAuth = (): AuthContextType => {
     throw new Error('useAuth must be used within an AuthProvider')
   }
   return context
+}
+
+/**
+ * Helper function to record user consent (separate from profile creation)
+ */
+const recordUserConsent = async (userId: string, legalConsent: ConsentData): Promise<void> => {
+  const { error } = await supabase
+    .from('user_consent')
+    .insert({
+      user_id: userId,
+      terms_accepted_version: legalConsent.terms_version,
+      privacy_accepted_version: legalConsent.privacy_version,
+      marketing_consent: legalConsent.marketing_consent,
+      analytics_consent: legalConsent.analytics_consent,
+      ai_learning_consent: legalConsent.ai_learning_consent,
+      accepted_at: legalConsent.consent_timestamp,
+      ip_address: legalConsent.ip_address,
+      user_agent: legalConsent.user_agent,
+      consent_source: 'registration'
+    })
+
+  if (error) {
+    throw new Error(`Failed to record consent: ${error.message}`)
+  }
 }
 
 /**
