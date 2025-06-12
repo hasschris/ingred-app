@@ -46,6 +46,41 @@ export default function TestRecipeScreen() {
     ]
   };
 
+  // Complex family test scenario
+  const complexFamilyPreferences: UserPreferences = {
+    household_size: 5,
+    cooking_skill: 'intermediate',
+    budget_level: 'moderate',
+    cooking_time_minutes: 45,
+    dietary_restrictions: ['vegetarian'],
+    allergies: [],
+    disliked_ingredients: ['mushrooms', 'olives'],
+    meals_per_week: 7,
+    family_members: [
+      {
+        name: 'Emma',
+        age_group: 'child',
+        dietary_restrictions: [],
+        allergies: ['dairy', 'eggs'],
+        allergy_severity: ['severe', 'moderate']
+      },
+      {
+        name: 'James',
+        age_group: 'teen', 
+        dietary_restrictions: ['gluten-free'],
+        allergies: ['nuts'],
+        allergy_severity: ['life_threatening']
+      },
+      {
+        name: 'Sarah',
+        age_group: 'adult',
+        dietary_restrictions: ['vegetarian', 'low-sodium'],
+        allergies: [],
+        allergy_severity: []
+      }
+    ]
+  };
+
   const generateTestRecipe = async (mealType: 'breakfast' | 'lunch' | 'dinner' | 'snack') => {
     if (!user) {
       Alert.alert('Error', 'Please sign in to generate recipes');
@@ -88,6 +123,96 @@ export default function TestRecipeScreen() {
         'Error',
         'An unexpected error occurred during recipe generation.'
       );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Error handling test function
+  const testErrorHandling = async () => {
+    if (!user) {
+      Alert.alert('Error', 'Please sign in to test error handling');
+      return;
+    }
+
+    setLoading(true);
+    console.log('🔧 Testing error handling...');
+
+    try {
+      // Temporarily break the request to test error handling
+      const badRequest: RecipeGenerationRequest = {
+        userId: user.id,
+        preferences: {
+          household_size: -1, // Invalid data
+          cooking_skill: 'invalid' as any, // Invalid skill
+          budget_level: 'free' as any, // Invalid budget
+          cooking_time_minutes: 0, // Invalid time
+          dietary_restrictions: [],
+          allergies: [],
+          disliked_ingredients: [],
+          meals_per_week: 0 // Invalid meals
+        },
+        mealType: 'invalid' as any // Invalid meal type
+      };
+
+      const result = await IngredAI.generateRecipe(badRequest);
+      
+      console.log('🔧 Error handling test result:', result);
+      
+      Alert.alert(
+        'Error Handling Test',
+        `Success: ${result.success}\nError: ${result.error || 'None'}\nFallback: ${result.fallback_used || false}\nMessage: ${result.user_message || 'None'}`
+      );
+      
+    } catch (error) {
+      console.log('🔧 Caught error in test:', error);
+      Alert.alert('Error Handling Test', `Caught exception: ${error}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Complex family test function
+  const testComplexFamily = async () => {
+    if (!user) {
+      Alert.alert('Error', 'Please sign in to test complex family');
+      return;
+    }
+
+    setLoading(true);
+    setGeneratedRecipe(null);
+    console.log('👨‍👩‍👧‍👦 Testing complex family scenario...');
+
+    try {
+      const request: RecipeGenerationRequest = {
+        userId: user.id,
+        preferences: complexFamilyPreferences,
+        mealType: 'dinner',
+        pantryItems: ['rice', 'vegetables', 'olive oil', 'herbs']
+      };
+
+      console.log('👨‍👩‍👧‍👦 Complex family request:', JSON.stringify(request, null, 2));
+
+      const result = await IngredAI.generateRecipe(request);
+
+      if (result.success && result.recipe) {
+        console.log('✅ Complex family recipe generated!');
+        console.log('🛡️ Safety warnings:', result.recipe.safety_warnings?.length || 0);
+        console.log('⚠️ Allergens detected:', result.recipe.detected_allergens?.length || 0);
+        
+        setGeneratedRecipe(result.recipe);
+        
+        Alert.alert(
+          'Complex Family Test Complete! 👨‍👩‍👧‍👦',
+          `Recipe: "${result.recipe.title}"\nAllergens: ${result.recipe.detected_allergens?.length || 0}\nSafety Score: ${result.recipe.safety_score}%\nCost: £${result.recipe.generation_cost?.toFixed(6) || '0'}`
+        );
+      } else {
+        console.error('Complex family test failed:', result);
+        Alert.alert('Complex Family Test Failed', result.user_message || result.error || 'Unknown error');
+      }
+    } catch (error) {
+      console.error('Complex family test error:', error);
+      Alert.alert('Complex Family Test Error', 'Unexpected error occurred');
     } finally {
       setLoading(false);
     }
@@ -154,6 +279,26 @@ export default function TestRecipeScreen() {
         >
           <Text style={styles.buttonText}>
             {loading ? 'Generating...' : 'Test Dinner Recipe'}
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.testButton, { backgroundColor: '#DC2626' }, loading && styles.buttonDisabled]}
+          onPress={testErrorHandling}
+          disabled={loading}
+        >
+          <Text style={styles.buttonText}>
+            {loading ? 'Testing...' : '🔧 Test Error Handling'}
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.testButton, { backgroundColor: '#059669' }, loading && styles.buttonDisabled]}
+          onPress={testComplexFamily}
+          disabled={loading}
+        >
+          <Text style={styles.buttonText}>
+            {loading ? 'Testing...' : '👨‍👩‍👧‍👦 Test Complex Family'}
           </Text>
         </TouchableOpacity>
       </View>
