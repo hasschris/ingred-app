@@ -41,6 +41,21 @@ export default function RootLayout() {
             presentation: 'modal' // Modal presentation for auth screens
           }} 
         />
+        <Stack.Screen 
+          name="test-recipe" 
+          options={{ 
+            title: 'Test AI Recipe Generation',
+            headerShown: true,
+            headerBackTitle: 'Back',
+            headerStyle: {
+              backgroundColor: '#8B5CF6',
+            },
+            headerTintColor: '#FFFFFF',
+            headerTitleStyle: {
+              fontWeight: 'bold',
+            },
+          }} 
+        />
       </Stack>
       <StatusBar style="auto" />
     </AuthProvider>

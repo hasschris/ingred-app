@@ -74,6 +74,13 @@ React.useEffect(() => {
         >
           <Text style={styles.secondaryButtonText}>Account Settings</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.primaryButton, { backgroundColor: '#059669' }]}
+          onPress={() => router.push('/test-recipe')}
+        >
+          <Text style={styles.buttonText}>🧠 Test AI Recipe Generation</Text>
+        </TouchableOpacity>
       </View>
     );
   }
