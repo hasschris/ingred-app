@@ -9,156 +9,215 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { useAuth } from '../../lib/auth';
-import { supabase } from '../../lib/supabase';
+import { 
+  testDatabaseConnection, 
+  debugAuthState, 
+  getCurrentUser, 
+  getCurrentSession,
+  clearAllAuthData 
+} from '../../lib/supabase';
 
 export default function PlanScreen() {
-  const { user, signOut } = useAuth();
+  const { user, session, isLoading, isInitialized, signOut, debugAuth, clearAuth } = useAuth();
   const [debugLog, setDebugLog] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [authState, setAuthState] = useState<any>(null);
+  const [testing, setTesting] = useState(false);
 
   const addDebugLog = (message: string) => {
-    console.log(message);
-    setDebugLog(prev => [...prev, `${new Date().toISOString().slice(11, 19)} - ${message}`]);
+    const timestamp = new Date().toISOString().slice(11, 19);
+    const logEntry = `${timestamp} - ${message}`;
+    console.log(logEntry);
+    setDebugLog(prev => [...prev, logEntry]);
   };
 
-  // Check detailed auth state
-  const checkAuthState = async () => {
-    addDebugLog('🚀 Checking detailed auth state...');
+  // Comprehensive system test
+  const runSystemDiagnostics = async () => {
+    setTesting(true);
+    setDebugLog([]);
+    addDebugLog('🚀 Starting comprehensive system diagnostics...');
 
-    // Check user from context
-    addDebugLog(`Auth Context User: ${user ? '✅ Present' : '❌ Null'}`);
-    if (user) {
-      addDebugLog(`User ID: ${user.id}`);
-      addDebugLog(`User Email: ${user.email || 'No email'}`);
-    }
-
-    // Check session directly from Supabase
     try {
-      const { data: { session }, error } = await supabase.auth.getSession();
+      // Test 1: Environment Variables
+      addDebugLog('📋 Test 1: Environment Variables');
+      const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+      const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+      addDebugLog(`URL: ${supabaseUrl ? '✅ Set' : '❌ Missing'}`);
+      addDebugLog(`Key: ${supabaseKey ? `✅ Set (${supabaseKey.length} chars)` : '❌ Missing'}`);
+
+      // Test 2: Auth Context State
+      addDebugLog('📋 Test 2: Auth Context State');
+      addDebugLog(`Loading: ${isLoading ? '⏳ Yes' : '✅ No'}`);
+      addDebugLog(`Initialized: ${isInitialized ? '✅ Yes' : '❌ No'}`);
+      addDebugLog(`User: ${user ? '✅ Present' : '❌ Null'}`);
+      addDebugLog(`Session: ${session ? '✅ Present' : '❌ Null'}`);
       
-      if (error) {
-        addDebugLog(`❌ Session check error: ${error.message}`);
-      } else if (session) {
-        addDebugLog(`✅ Valid session found`);
+      if (user) {
+        addDebugLog(`User ID: ${user.id}`);
+        addDebugLog(`User Email: ${user.email}`);
+      }
+      
+      if (session) {
         addDebugLog(`Session expires: ${new Date(session.expires_at! * 1000).toLocaleString()}`);
-        addDebugLog(`Access token length: ${session.access_token.length}`);
-        setAuthState(session);
-      } else {
-        addDebugLog(`❌ No session found`);
-        setAuthState(null);
-      }
-    } catch (error) {
-      addDebugLog(`❌ Session check failed: ${error instanceof Error ? error.message : 'Unknown'}`);
-    }
-
-    // Check user directly from Supabase
-    try {
-      const { data: { user: supabaseUser }, error } = await supabase.auth.getUser();
-      
-      if (error) {
-        addDebugLog(`❌ User check error: ${error.message}`);
-      } else if (supabaseUser) {
-        addDebugLog(`✅ Valid user from Supabase`);
-        addDebugLog(`Supabase User ID: ${supabaseUser.id}`);
-      } else {
-        addDebugLog(`❌ No user from Supabase`);
-      }
-    } catch (error) {
-      addDebugLog(`❌ User check failed: ${error instanceof Error ? error.message : 'Unknown'}`);
-    }
-
-    // Check what's in AsyncStorage now
-    try {
-      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
-      const keys = await AsyncStorage.getAllKeys();
-      addDebugLog(`AsyncStorage keys: ${keys.length} items`);
-      
-      // Look for Supabase-related keys
-      const supabaseKeys = keys.filter(key => 
-        key.includes('supabase') || key.includes('sb-')
-      );
-      addDebugLog(`Supabase-related keys: ${supabaseKeys.join(', ') || 'None'}`);
-      
-    } catch (error) {
-      addDebugLog(`❌ AsyncStorage check failed: ${error instanceof Error ? error.message : 'Unknown'}`);
-    }
-
-    addDebugLog('🎉 Auth state check completed!');
-    setLoading(false);
-  };
-
-  // Force proper logout
-  const forceLogout = async () => {
-    addDebugLog('🚪 Starting force logout...');
-    
-    try {
-      // Try context signOut if available
-      if (signOut) {
-        addDebugLog('Calling context signOut...');
-        await signOut();
-        addDebugLog('✅ Context signOut completed');
-      } else {
-        addDebugLog('⚠️ No signOut function in context');
       }
 
-      // Try direct Supabase signOut
-      addDebugLog('Calling direct Supabase signOut...');
-      const { error } = await supabase.auth.signOut();
+      // Test 3: Direct Supabase Client Calls
+      addDebugLog('📋 Test 3: Direct Supabase Client Calls');
       
-      if (error) {
-        addDebugLog(`❌ Supabase signOut error: ${error.message}`);
-      } else {
-        addDebugLog('✅ Supabase signOut completed');
+      // Test session retrieval
+      addDebugLog('Testing getCurrentSession...');
+      const directSession = await getCurrentSession(3000);
+      addDebugLog(`Direct session: ${directSession ? '✅ Retrieved' : '❌ Failed'}`);
+
+      // Test user retrieval
+      addDebugLog('Testing getCurrentUser...');
+      const directUser = await getCurrentUser(3000);
+      addDebugLog(`Direct user: ${directUser ? '✅ Retrieved' : '❌ Failed'}`);
+
+      // Test 4: Database Connectivity
+      addDebugLog('📋 Test 4: Database Connectivity');
+      const dbConnected = await testDatabaseConnection(3000);
+      addDebugLog(`Database: ${dbConnected ? '✅ Connected' : '❌ Failed'}`);
+
+      // Test 5: Auth State Debug
+      addDebugLog('📋 Test 5: Enhanced Auth Debug');
+      const authDebugResult = await debugAuth();
+      addDebugLog(`DB Connected: ${authDebugResult.dbConnected ? '✅' : '❌'}`);
+      addDebugLog(`Has Session: ${authDebugResult.hasSession ? '✅' : '❌'}`);
+      addDebugLog(`Has User: ${authDebugResult.hasUser ? '✅' : '❌'}`);
+      if (authDebugResult.sessionExpiry) {
+        addDebugLog(`Session Expiry: ${authDebugResult.sessionExpiry.toLocaleString()}`);
       }
 
-      // Clear AsyncStorage again
-      addDebugLog('Clearing AsyncStorage again...');
-      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
-      await AsyncStorage.clear();
-      addDebugLog('✅ AsyncStorage cleared');
+      // Test 6: AsyncStorage State
+      addDebugLog('📋 Test 6: AsyncStorage State');
+      try {
+        const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+        const keys = await AsyncStorage.getAllKeys();
+        const authKeys = keys.filter(key => 
+          key.includes('supabase') || key.includes('sb-') || key.includes('auth')
+        );
+        addDebugLog(`Total storage keys: ${keys.length}`);
+        addDebugLog(`Auth-related keys: ${authKeys.length}`);
+        authKeys.forEach(key => addDebugLog(`  - ${key}`));
+      } catch (error) {
+        addDebugLog(`❌ AsyncStorage check failed: ${error}`);
+      }
 
-      addDebugLog('🔄 Restart the app now - should go to login screen');
-      
+      // Test 7: Simple Database Query
+      addDebugLog('📋 Test 7: Simple Database Query');
+      try {
+        const { supabase } = require('../../lib/supabase');
+        
+        const queryPromise = supabase
+          .from('user_preferences')
+          .select('count', { count: 'exact', head: true });
+          
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Query timeout after 5s')), 5000)
+        );
+
+        await Promise.race([queryPromise, timeoutPromise]);
+        addDebugLog('✅ Simple query successful!');
+      } catch (error) {
+        addDebugLog(`❌ Simple query failed: ${error}`);
+      }
+
+      addDebugLog('🎉 System diagnostics completed!');
+
+      // Summary
+      addDebugLog('📊 DIAGNOSTIC SUMMARY:');
+      addDebugLog(`Environment: ${supabaseUrl && supabaseKey ? '✅ OK' : '❌ FAIL'}`);
+      addDebugLog(`Auth Context: ${isInitialized ? '✅ OK' : '❌ FAIL'}`);
+      addDebugLog(`Supabase Client: ${directSession !== null || directUser !== null ? '✅ OK' : '❌ FAIL'}`);
+      addDebugLog(`Database: ${dbConnected ? '✅ OK' : '❌ FAIL'}`);
+
     } catch (error) {
-      addDebugLog(`❌ Force logout error: ${error instanceof Error ? error.message : 'Unknown'}`);
+      addDebugLog(`❌ Diagnostics failed: ${error}`);
+    } finally {
+      setTesting(false);
     }
   };
 
-  // Test a simple database call to see if it works now
-  const testDatabaseCall = async () => {
-    addDebugLog('🔍 Testing database call...');
+  // Force complete logout and clear everything
+  const forceCompleteLogout = async () => {
+    addDebugLog('🚪 Starting force complete logout...');
     
     try {
-      const { data, error } = await Promise.race([
-        supabase.from('user_preferences').select('count', { count: 'exact', head: true }),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Database timeout')), 3000)
-        )
-      ]) as any;
+      // Use context signOut
+      addDebugLog('Calling context signOut...');
+      await signOut();
       
+      // Use enhanced clear auth
+      addDebugLog('Clearing all auth data...');
+      const cleared = await clearAuth();
+      addDebugLog(`Auth data cleared: ${cleared ? '✅' : '❌'}`);
+      
+      // Additional manual clearing
+      try {
+        const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+        await AsyncStorage.clear();
+        addDebugLog('✅ AsyncStorage completely cleared');
+      } catch (error) {
+        addDebugLog(`❌ AsyncStorage clear failed: ${error}`);
+      }
+
+      addDebugLog('✅ Complete logout finished');
+      addDebugLog('🔄 Please restart the app now');
+      
+    } catch (error) {
+      addDebugLog(`❌ Force logout error: ${error}`);
+    }
+  };
+
+  // Test a specific user query to see if RLS is working
+  const testUserQuery = async () => {
+    addDebugLog('🔍 Testing user-specific query...');
+    
+    if (!user) {
+      addDebugLog('❌ No user - cannot test user query');
+      return;
+    }
+
+    try {
+      const { supabase } = require('../../lib/supabase');
+      
+      addDebugLog(`Testing query for user: ${user.id}`);
+      
+      const { data, error } = await supabase
+        .from('user_preferences')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
       if (error) {
-        addDebugLog(`❌ Database call error: ${error.message}`);
+        addDebugLog(`❌ User query error: ${error.message}`);
+        if (error.message.includes('JWT')) {
+          addDebugLog('🔍 This looks like an auth token issue');
+        }
+        if (error.message.includes('RLS')) {
+          addDebugLog('🔍 This looks like a Row Level Security issue');
+        }
       } else {
-        addDebugLog(`✅ Database call successful!`);
-        addDebugLog('🎉 The database issue is FIXED!');
+        addDebugLog('✅ User query successful!');
+        addDebugLog(`Data received: ${data ? 'Yes' : 'No'}`);
       }
     } catch (error) {
-      addDebugLog(`❌ Database call failed: ${error instanceof Error ? error.message : 'Unknown'}`);
+      addDebugLog(`❌ User query failed: ${error}`);
     }
   };
 
   useEffect(() => {
-    checkAuthState();
-  }, []);
+    // Auto-run diagnostics on load
+    if (isInitialized && !testing) {
+      runSystemDiagnostics();
+    }
+  }, [isInitialized]);
 
-  if (loading) {
+  if (!isInitialized) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#8B5CF6" />
-          <Text style={styles.loadingText}>Checking auth state...</Text>
-          <Text style={styles.loadingSubtext}>Diagnosing authentication issue</Text>
+          <Text style={styles.loadingText}>Initializing auth system...</Text>
         </View>
       </SafeAreaView>
     );
@@ -168,14 +227,30 @@ export default function PlanScreen() {
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView}>
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>🔐 Auth State Debug</Text>
+          <Text style={styles.headerTitle}>🔧 Enhanced System Diagnostics</Text>
           <Text style={styles.headerSubtitle}>
-            Checking why you're still logged in after clearing data
+            Comprehensive testing of Supabase client and auth system
+          </Text>
+        </View>
+
+        <View style={styles.statusContainer}>
+          <Text style={styles.statusTitle}>Current Status:</Text>
+          <Text style={[styles.statusText, user ? styles.statusSuccess : styles.statusError]}>
+            {user ? `✅ Logged in as ${user.email}` : '❌ Not logged in'}
+          </Text>
+          <Text style={[styles.statusText, session ? styles.statusSuccess : styles.statusError]}>
+            {session ? '✅ Valid session' : '❌ No session'}
+          </Text>
+          <Text style={[styles.statusText, isInitialized ? styles.statusSuccess : styles.statusWarning]}>
+            {isInitialized ? '✅ Auth initialized' : '⏳ Initializing...'}
           </Text>
         </View>
 
         <View style={styles.debugContainer}>
-          <Text style={styles.debugTitle}>Debug Log:</Text>
+          <Text style={styles.debugTitle}>Diagnostic Log:</Text>
+          {debugLog.length === 0 && (
+            <Text style={styles.debugLog}>Running initial diagnostics...</Text>
+          )}
           {debugLog.map((log, index) => (
             <Text key={index} style={[
               styles.debugLog,
@@ -189,46 +264,45 @@ export default function PlanScreen() {
           ))}
         </View>
 
-        <TouchableOpacity 
-          style={styles.logoutButton}
-          onPress={forceLogout}
-        >
-          <Text style={styles.logoutButtonText}>🚪 Force Proper Logout</Text>
-        </TouchableOpacity>
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity 
+            style={[styles.button, styles.primaryButton]}
+            onPress={runSystemDiagnostics}
+            disabled={testing}
+          >
+            <Text style={styles.buttonText}>
+              {testing ? '🔄 Running...' : '🔍 Run Full Diagnostics'}
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity 
-          style={styles.testButton}
-          onPress={testDatabaseCall}
-        >
-          <Text style={styles.testButtonText}>🔍 Test Database Call</Text>
-        </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.button, styles.secondaryButton]}
+            onPress={testUserQuery}
+            disabled={!user}
+          >
+            <Text style={styles.buttonText}>
+              🔍 Test User Query
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity 
-          style={styles.refreshButton}
-          onPress={() => {
-            setDebugLog([]);
-            setLoading(true);
-            checkAuthState();
-          }}
-        >
-          <Text style={styles.refreshButtonText}>🔄 Check Auth Again</Text>
-        </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.button, styles.logoutButton]}
+            onPress={forceCompleteLogout}
+          >
+            <Text style={styles.buttonText}>
+              🚪 Force Complete Logout
+            </Text>
+          </TouchableOpacity>
+        </View>
 
         <View style={styles.instructions}>
-          <Text style={styles.instructionsTitle}>🎯 What We're Looking For:</Text>
+          <Text style={styles.instructionsTitle}>🎯 Next Steps:</Text>
           <Text style={styles.instructionsText}>
-            • Session should be null after clearing data{'\n'}
-            • User should be null after proper logout{'\n'}
-            • Database calls should work after fresh login{'\n'}
-            • App should go to login screen after restart
-          </Text>
-          
-          <Text style={styles.instructionsTitle}>📋 Expected Fix:</Text>
-          <Text style={styles.instructionsText}>
-            1. Force logout should clear everything{'\n'}
-            2. Restart app → should go to login screen{'\n'}
-            3. Login again → fresh session{'\n'}
-            4. Database calls should work normally
+            1. Check if all diagnostics pass ✅{'\n'}
+            2. If database connects but user queries fail → RLS issue{'\n'}
+            3. If client calls timeout → Configuration issue{'\n'}
+            4. If auth state inconsistent → Context issue{'\n'}
+            5. Test complete logout → restart → login cycle
           </Text>
         </View>
       </ScrollView>
@@ -256,12 +330,6 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     textAlign: 'center',
   },
-  loadingSubtext: {
-    marginTop: 4,
-    fontSize: 14,
-    color: '#9CA3AF',
-    textAlign: 'center',
-  },
   header: {
     padding: 20,
     backgroundColor: '#FFFFFF',
@@ -278,13 +346,42 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6B7280',
   },
-  debugContainer: {
+  statusContainer: {
     backgroundColor: '#FFFFFF',
     margin: 16,
     padding: 16,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#E5E7EB',
+  },
+  statusTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 8,
+  },
+  statusText: {
+    fontSize: 14,
+    marginBottom: 4,
+  },
+  statusSuccess: {
+    color: '#059669',
+  },
+  statusError: {
+    color: '#DC2626',
+  },
+  statusWarning: {
+    color: '#D97706',
+  },
+  debugContainer: {
+    backgroundColor: '#FFFFFF',
+    margin: 16,
+    marginTop: 0,
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    maxHeight: 400,
   },
   debugTitle: {
     fontSize: 16,
@@ -315,40 +412,26 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     backgroundColor: '#F0FDF4',
   },
+  buttonContainer: {
+    margin: 16,
+    marginTop: 0,
+  },
+  button: {
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  primaryButton: {
+    backgroundColor: '#8B5CF6',
+  },
+  secondaryButton: {
+    backgroundColor: '#059669',
+  },
   logoutButton: {
     backgroundColor: '#DC2626',
-    margin: 16,
-    padding: 16,
-    borderRadius: 8,
-    alignItems: 'center',
   },
-  logoutButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  testButton: {
-    backgroundColor: '#059669',
-    margin: 16,
-    marginTop: 0,
-    padding: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  testButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  refreshButton: {
-    backgroundColor: '#8B5CF6',
-    margin: 16,
-    marginTop: 0,
-    padding: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  refreshButtonText: {
+  buttonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
@@ -356,6 +439,7 @@ const styles = StyleSheet.create({
   instructions: {
     backgroundColor: '#F3F4F6',
     margin: 16,
+    marginTop: 0,
     padding: 16,
     borderRadius: 8,
   },
@@ -364,7 +448,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#1F2937',
     marginBottom: 8,
-    marginTop: 12,
   },
   instructionsText: {
     fontSize: 13,

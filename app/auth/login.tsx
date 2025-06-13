@@ -59,8 +59,7 @@ export default function LoginScreen() {
 
       if (result.success) {
         console.log('✅ Login successful!');
-        // Navigation will be handled automatically by AuthProvider
-        // The user will see the authenticated home screen
+        router.replace('/');
       } else {
         Alert.alert(
           'Login Failed',
