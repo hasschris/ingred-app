@@ -4,18 +4,17 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 /**
  * FIXED: Supabase Client Configuration for Ingred
  * 
- * This resolves the session persistence and timeout issues by:
- * - Proper error handling for invalid environment variables
- * - Optimized client configuration for React Native
- * - Enhanced debugging for session management
- * - Improved timeout and retry settings
+ * This resolves timeout issues by:
+ * - Using standard auth flow (not PKCE)
+ * - Removing problematic timeout wrappers
+ * - Simplifying client configuration
+ * - Proper AsyncStorage integration
  */
 
 // Environment configuration with validation
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY
 
-// Validate environment variables
 if (!supabaseUrl || !supabaseAnonKey) {
   console.error('❌ CRITICAL: Missing Supabase environment variables')
   console.error('EXPO_PUBLIC_SUPABASE_URL:', supabaseUrl ? '✅ Set' : '❌ Missing')
@@ -27,75 +26,56 @@ console.log('🔧 Initializing Supabase client...')
 console.log('URL:', supabaseUrl)
 console.log('Key length:', supabaseAnonKey.length)
 
-// Create Supabase client with optimized React Native configuration
+// Create Supabase client with FIXED React Native configuration
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    // Use AsyncStorage for secure token storage
     storage: AsyncStorage,
-    // Enhanced session management
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
-    // Use PKCE flow for mobile security
-    flowType: 'pkce',
-    // Debug settings - remove in production
-    debug: __DEV__,
-    // Storage key prefix to avoid conflicts
-    storageKey: 'sb-ingred-auth-token',
+    // REMOVED: flowType: 'pkce' - this was causing timeouts!
+    // REMOVED: custom storageKey - use default
+    // REMOVED: debug setting - can cause issues
   },
-  // Optimized for React Native performance
   global: {
     headers: {
       'x-client-info': 'supabase-js-react-native',
     },
   },
-  realtime: {
-    params: {
-      eventsPerSecond: 10,
-    },
-  },
-  // Enhanced error handling
+  // REMOVED: realtime config - unnecessary for your use case
   db: {
     schema: 'public',
   },
 })
 
 /**
- * Enhanced Session Management Functions
+ * Simple Auth Helpers (NO TIMEOUT WRAPPERS)
  */
 
-// Helper to get current user with timeout protection
-export const getCurrentUser = async (timeoutMs: number = 5000) => {
+// Get current user - simple and direct (backwards compatible)
+export const getCurrentUser = async (timeoutMs?: number) => {
   console.log('🔍 Getting current user...')
-  
-  return Promise.race([
-    supabase.auth.getUser(),
-    new Promise<never>((_, reject) => 
-      setTimeout(() => reject(new Error('Get user timeout')), timeoutMs)
-    )
-  ]).then(({ data, error }) => {
+  // Note: timeoutMs parameter kept for backwards compatibility but ignored
+  try {
+    const { data, error } = await supabase.auth.getUser()
     if (error) {
       console.error('❌ Get user error:', error.message)
       return null
     }
     console.log('✅ User retrieved:', data.user ? 'Present' : 'Null')
     return data.user
-  }).catch(error => {
-    console.error('❌ Get user failed:', error.message)
+  } catch (error) {
+    console.error('❌ Get user failed:', error)
     return null
-  })
+  }
 }
 
-// Helper to get current session with timeout protection
-export const getCurrentSession = async (timeoutMs: number = 5000) => {
+// Get current session - simple and direct (backwards compatible)
+export const getCurrentSession = async (timeoutMs?: number) => {
   console.log('🔍 Getting current session...')
-  
-  return Promise.race([
-    supabase.auth.getSession(),
-    new Promise<never>((_, reject) => 
-      setTimeout(() => reject(new Error('Get session timeout')), timeoutMs)
-    )
-  ]).then(({ data, error }) => {
+  // Note: timeoutMs parameter kept for backwards compatibility but ignored
+  try {
+    const { data, error } = await supabase.auth.getSession()
     if (error) {
       console.error('❌ Get session error:', error.message)
       return null
@@ -105,109 +85,53 @@ export const getCurrentSession = async (timeoutMs: number = 5000) => {
       console.log('📅 Session expires:', new Date(data.session.expires_at! * 1000).toLocaleString())
     }
     return data.session
-  }).catch(error => {
-    console.error('❌ Get session failed:', error.message)
+  } catch (error) {
+    console.error('❌ Get session failed:', error)
     return null
-  })
+  }
 }
 
-// Test database connectivity with timeout
-export const testDatabaseConnection = async (timeoutMs: number = 3000) => {
+// Test database connectivity - simple and direct
+export const testDatabaseConnection = async () => {
   console.log('🔍 Testing database connection...')
-  
-  return Promise.race([
-    supabase.from('user_preferences').select('count', { count: 'exact', head: true }),
-    new Promise<never>((_, reject) => 
-      setTimeout(() => reject(new Error('Database timeout')), timeoutMs)
-    )
-  ]).then(({ error }) => {
+  try {
+    const { error } = await supabase.from('user_preferences').select('count', { count: 'exact', head: true })
     if (error) {
       console.error('❌ Database test error:', error.message)
       return false
     }
     console.log('✅ Database connection successful!')
     return true
-  }).catch(error => {
-    console.error('❌ Database test failed:', error.message)
-    return false
-  })
-}
-
-// Helper to clear all auth data (for proper logout)
-export const clearAllAuthData = async () => {
-  console.log('🧹 Clearing all auth data...')
-  
-  try {
-    // Sign out from Supabase
-    await supabase.auth.signOut()
-    
-    // Clear specific auth keys from AsyncStorage
-    const keys = await AsyncStorage.getAllKeys()
-    const authKeys = keys.filter(key => 
-      key.includes('supabase') || 
-      key.includes('sb-') ||
-      key.includes('auth-token')
-    )
-    
-    if (authKeys.length > 0) {
-      await AsyncStorage.multiRemove(authKeys)
-      console.log('✅ Removed auth keys:', authKeys)
-    }
-    
-    // Verify clearance
-    const remainingKeys = await AsyncStorage.getAllKeys()
-    const remainingAuthKeys = remainingKeys.filter(key => 
-      key.includes('supabase') || key.includes('sb-')
-    )
-    
-    if (remainingAuthKeys.length === 0) {
-      console.log('✅ All auth data cleared successfully')
-      return true
-    } else {
-      console.warn('⚠️ Some auth data remains:', remainingAuthKeys)
-      return false
-    }
   } catch (error) {
-    console.error('❌ Error clearing auth data:', error)
+    console.error('❌ Database test failed:', error)
     return false
   }
 }
 
-// Enhanced safe query helper with better error handling
-export const safeQuery = async <T>(
-  queryFn: () => Promise<{ data: T | null; error: any }>,
-  timeoutMs: number = 5000
-): Promise<{ data: T | null; error: string | null; success: boolean }> => {
+// Clear auth data for logout
+export const clearAllAuthData = async () => {
+  console.log('🧹 Clearing all auth data...')
   try {
-    const result = await Promise.race([
-      queryFn(),
-      new Promise<never>((_, reject) => 
-        setTimeout(() => reject(new Error('Query timeout')), timeoutMs)
-      )
-    ])
+    // Sign out from Supabase
+    await supabase.auth.signOut()
     
-    if (result.error) {
-      console.error('Database query error:', result.error)
-      return { 
-        data: null, 
-        error: result.error.message || 'Database query failed',
-        success: false 
-      }
+    // Clear auth keys from AsyncStorage
+    const keys = await AsyncStorage.getAllKeys()
+    const authKeys = keys.filter(key => 
+      key.includes('supabase') || 
+      key.includes('sb-')
+    )
+    
+    if (authKeys.length > 0) {
+      await AsyncStorage.multiRemove(authKeys)
+      console.log('✅ Removed auth keys:', authKeys.length)
     }
     
-    return { 
-      data: result.data, 
-      error: null,
-      success: true 
-    }
-  } catch (err) {
-    const errorMessage = err instanceof Error ? err.message : 'Unknown error'
-    console.error('Query failed:', errorMessage)
-    return { 
-      data: null, 
-      error: errorMessage,
-      success: false 
-    }
+    console.log('✅ All auth data cleared successfully')
+    return true
+  } catch (error) {
+    console.error('❌ Error clearing auth data:', error)
+    return false
   }
 }
 
@@ -234,7 +158,6 @@ export const debugAuthState = async () => {
       key.includes('supabase') || key.includes('sb-')
     )
     console.log('Auth keys in storage:', authKeys.length)
-    authKeys.forEach(key => console.log('  -', key))
   } catch (error) {
     console.error('❌ AsyncStorage check failed:', error)
   }
