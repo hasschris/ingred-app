@@ -3,14 +3,12 @@ import { Session, User } from '@supabase/supabase-js'
 import { supabase, getCurrentUser, getCurrentSession, clearAllAuthData, debugAuthState } from './supabase'
 
 /**
- * FIXED: Authentication Context with Proper Session Management
+ * FIXED: Authentication Context with Enhanced Logout Routing
  * 
- * This resolves the auth state management issues by:
- * - Proper session restoration timing
- * - Enhanced error handling and timeouts
- * - Better loading state management
- * - Improved logout functionality
- * - Debugging capabilities
+ * This resolves the logout routing issue by:
+ * - Enhanced signOut method with immediate router navigation
+ * - Better error handling during logout
+ * - Forced state updates for immediate UI response
  */
 
 // Legal consent data structure for GDPR compliance
@@ -40,7 +38,7 @@ export interface AuthContextType {
   user: User | null
   session: Session | null
   isLoading: boolean
-  isInitialized: boolean // NEW: Track if auth has been initialized
+  isInitialized: boolean
   
   // Core authentication methods with legal compliance
   signUp: (email: string, password: string, legalConsent: ConsentData) => Promise<AuthResult>
@@ -66,9 +64,7 @@ export interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 /**
- * FIXED: Authentication Provider Component
- * 
- * Properly handles session restoration and state management
+ * FIXED: Authentication Provider Component with Enhanced Logout
  */
 interface AuthProviderProps {
   children: React.ReactNode
@@ -372,27 +368,47 @@ export function AuthProvider({ children }: AuthProviderProps): React.JSX.Element
   }
 
   /**
-   * Enhanced Logout
+   * ENHANCED LOGOUT WITH IMMEDIATE ROUTING
    */
   const signOut = async (): Promise<void> => {
     try {
-      console.log('🚪 Starting logout...')
+      console.log('🚪 Starting enhanced logout...')
       
-      // Clear auth data
+      // Step 1: Clear auth data from Supabase and storage
       const cleared = await clearAllAuthData()
       
       if (cleared) {
-        console.log('✅ Logout completed successfully')
+        console.log('✅ Auth data cleared successfully')
       } else {
-        console.warn('⚠️ Logout completed with warnings')
+        console.warn('⚠️ Auth data cleared with warnings')
       }
       
-      // Force state update
+      // Step 2: Force immediate state update
       setSession(null)
       setUser(null)
       
+      // Step 3: Force immediate router navigation
+      // Import router dynamically to avoid circular dependencies
+      const { router } = await import('expo-router')
+      
+      console.log('🔄 Forcing immediate navigation to login...')
+      router.replace('/auth/login')
+      
+      console.log('✅ Enhanced logout completed')
+      
     } catch (error) {
-      console.error('❌ Logout error:', error)
+      console.error('❌ Enhanced logout error:', error)
+      
+      // Even if there's an error, force logout and redirect
+      setSession(null)
+      setUser(null)
+      
+      try {
+        const { router } = await import('expo-router')
+        router.replace('/auth/login')
+      } catch (routerError) {
+        console.error('❌ Emergency router redirect failed:', routerError)
+      }
     }
   }
 

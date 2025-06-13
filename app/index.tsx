@@ -11,10 +11,11 @@ import { StatusBar } from 'expo-status-bar';
 import { useAuth } from '../lib/auth';
 
 /**
- * FIXED: Main App Index - Real Auth State Routing
+ * FIXED: Main App Index with Enhanced Routing Responsiveness
  * 
- * This now properly checks actual authentication status instead of using
- * mock data, ensuring users are routed correctly based on their real login state.
+ * This now properly responds to auth state changes immediately,
+ * including logout events, ensuring users are routed correctly
+ * in real-time based on their authentication status.
  */
 
 interface UserStatus {
@@ -31,12 +32,19 @@ export default function AppIndex() {
   const [isRouting, setIsRouting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // ENHANCED: More responsive auth state monitoring
   useEffect(() => {
-    // Only route when auth is fully initialized
+    console.log('🔄 Auth state changed, re-evaluating routing...')
+    console.log('isInitialized:', isInitialized, 'isLoading:', isLoading, 'user:', !!user, 'session:', !!session, 'isRouting:', isRouting)
+    
+    // Only route when auth is fully initialized and not currently routing
     if (isInitialized && !isLoading && !isRouting) {
-      checkUserStatusAndRoute();
+      console.log('✅ Conditions met, checking user status and routing...')
+      checkUserStatusAndRoute()
+    } else {
+      console.log('⏳ Waiting for auth initialization or routing in progress...')
     }
-  }, [isInitialized, isLoading, user, session]);
+  }, [isInitialized, isLoading, user, session, isRouting]) // Enhanced dependency array
 
   const checkUserStatusAndRoute = async () => {
     try {
@@ -126,18 +134,19 @@ export default function AppIndex() {
     }
   };
 
+  // ENHANCED: More responsive routing with better logging
   const routeUser = (status: UserStatus) => {
-    console.log('🚦 Routing user based on status:', status);
+    console.log('🚦 Enhanced routing user based on status:', status);
 
     if (!status.isAuthenticated) {
       // User not authenticated - redirect to login
-      console.log('🔑 Routing to authentication');
+      console.log('🔑 Routing to authentication (user logged out or session invalid)');
       router.replace('/auth/login');
       return;
     }
 
     // TEMPORARILY BYPASS LEGAL CONSENT FOR TESTING
-    // TODO: Re-enable this in Conversation 2
+    // TODO: Re-enable this in future conversation
     /*
     if (!status.legalConsentRecorded) {
       // User authenticated but no legal consent - redirect to legal flow
