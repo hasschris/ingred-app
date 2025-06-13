@@ -326,7 +326,23 @@ Guest restrictions: ${specialOccasion.guest_dietary_restrictions?.join(', ') || 
 
 Generate recipes that prioritize safety while being delicious and family-appropriate.`
 
-    const userPrompt = `Create a ${mealType} recipe for my family:
+    const mealTypePrompts = {
+      breakfast: "Create a delicious breakfast recipe that energizes my family for the day:",
+      lunch: "Create a satisfying lunch recipe that provides midday energy and nutrition:",
+      dinner: "Create a hearty dinner recipe that brings my family together for the evening:"
+    };
+
+    const varietyRequests = {
+      breakfast: "Focus on morning-appropriate foods like eggs, toast, cereals, or pancakes.",
+      lunch: "Consider lighter meals like salads, sandwiches, soups, or quick stir-fries.",
+      dinner: "Think substantial evening meals like pasta dishes, casseroles, roasts, or curries."
+    };
+
+    const userPrompt = `${mealTypePrompts[mealType]}
+
+    ${varietyRequests[mealType]}
+
+    VARIETY REQUEST: Please create something different from typical ${mealType === 'lunch' ? 'stir-fry' : 'repeated'} dishes. Explore diverse ingredients and cooking methods.
 
 Family Details:
 - Household size: ${preferences.household_size} people
@@ -581,7 +597,7 @@ Return JSON format:
 
     console.log('💾 About to insert recipe into database...');
 
-    try {
+try {
       // Set a reasonable timeout and try the insert
       const insertResult = await Promise.race([
         supabase
