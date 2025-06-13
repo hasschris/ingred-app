@@ -15,20 +15,12 @@ import { useAuth } from '../../lib/auth';
 import { supabase } from '../../lib/supabase';
 
 /**
- * Individual Family Member Setup Screen
+ * Family Setup Route - Onboarding Version
  * 
- * This is where Ingred's family intelligence truly shines - demonstrating
- * sophisticated handling of complex household dynamics that no competitor
- * can match. Features:
- * 
- * - Individual dietary restrictions and allergies per family member
- * - Coordinated safety management across the entire household
- * - Age-appropriate meal suggestions and safety considerations
- * - Complex family scenario handling (picky eaters, medical needs, etc.)
- * - Real-time safety conflict detection and resolution
- * 
- * This screen proves why families will choose Ingred over basic
- * meal planning apps that can't handle real household complexity.
+ * This is the onboarding version of family member setup that
+ * focuses on completing the initial setup flow. It provides
+ * a streamlined experience for adding family members during
+ * the onboarding process.
  */
 
 interface FamilyMember {
@@ -54,12 +46,6 @@ const AGE_GROUPS = [
   { id: 'senior', label: '👴 Senior (65+)', description: 'Health-conscious, easier preparation' }
 ];
 
-const DIETARY_RESTRICTIONS = [
-  'vegetarian', 'vegan', 'pescatarian', 'gluten-free', 'dairy-free', 
-  'keto', 'paleo', 'low-sodium', 'diabetic-friendly', 'low-fat',
-  'nut-free', 'shellfish-free', 'egg-free', 'soy-free'
-];
-
 const COMMON_ALLERGENS = [
   { id: 'nuts', label: '🥜 Tree Nuts', severity: 'high' },
   { id: 'peanuts', label: '🥜 Peanuts', severity: 'high' },
@@ -72,14 +58,13 @@ const COMMON_ALLERGENS = [
   { id: 'wheat', label: '🌾 Wheat/Gluten', severity: 'medium' }
 ];
 
-const ALLERGY_SEVERITIES = [
-  { id: 'mild', label: '😊 Mild', description: 'Minor discomfort, can often work around' },
-  { id: 'moderate', label: '😐 Moderate', description: 'Noticeable reaction, should avoid' },
-  { id: 'severe', label: '😰 Severe', description: 'Strong reaction, must avoid completely' },
-  { id: 'life_threatening', label: '🚨 Life-Threatening', description: 'Emergency risk, zero tolerance' }
+const DIETARY_RESTRICTIONS = [
+  'vegetarian', 'vegan', 'pescatarian', 'gluten-free', 'dairy-free', 
+  'keto', 'paleo', 'low-sodium', 'diabetic-friendly', 'low-fat',
+  'nut-free', 'shellfish-free', 'egg-free', 'soy-free'
 ];
 
-export default function FamilyMemberSetupScreen() {
+export default function FamilySetupScreen() {
   const router = useRouter();
   const { user } = useAuth();
   
@@ -139,44 +124,6 @@ export default function FamilyMemberSetupScreen() {
     };
     setEditingMember(newMember);
     setShowMemberModal(true);
-  };
-
-  // Edit existing family member
-  const editFamilyMember = (member: FamilyMember) => {
-    setEditingMember({ ...member });
-    setShowMemberModal(true);
-  };
-
-  // Delete family member
-  const deleteFamilyMember = async (memberId: string) => {
-    Alert.alert(
-      'Remove Family Member',
-      'Are you sure you want to remove this family member? This will affect their meal planning.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const { error } = await supabase
-                .from('family_members')
-                .delete()
-                .eq('id', memberId);
-
-              if (error) {
-                Alert.alert('Error', 'Failed to remove family member');
-                return;
-              }
-
-              setFamilyMembers(prev => prev.filter(m => m.id !== memberId));
-            } catch (error) {
-              Alert.alert('Error', 'An unexpected error occurred');
-            }
-          }
-        }
-      ]
-    );
   };
 
   // Save family member
@@ -239,58 +186,38 @@ export default function FamilyMemberSetupScreen() {
     }
   };
 
-  // Detect safety conflicts across family members
-  const detectSafetyConflicts = () => {
-    const allAllergens = new Set<string>();
-    const conflicts: string[] = [];
-
-    familyMembers.forEach(member => {
-      member.allergies.forEach(allergen => allAllergens.add(allergen));
-    });
-
-    // Check for conflicting dietary restrictions
-    const vegetarians = familyMembers.filter(m => m.dietary_restrictions.includes('vegetarian'));
-    const nonVegetarians = familyMembers.filter(m => !m.dietary_restrictions.includes('vegetarian'));
-    
-    if (vegetarians.length > 0 && nonVegetarians.length > 0) {
-      conflicts.push('Mixed vegetarian/non-vegetarian preferences - we\'ll create flexible recipes');
-    }
-
-    return {
-      criticalAllergens: Array.from(allAllergens),
-      conflicts,
-      requiresSpecialAttention: allAllergens.size > 0 || conflicts.length > 0
-    };
-  };
-
-  // Complete family setup
-  const completeFamilySetup = async () => {
+  // Complete onboarding
+  const completeOnboarding = async () => {
     setLoading(true);
 
     try {
-      console.log('✅ Family member setup completed!');
+      // Mark onboarding as completed
+      await supabase
+        .from('user_profiles')
+        .update({ onboarding_completed: true })
+        .eq('id', user!.id);
+
+      console.log('✅ Onboarding completed!');
       
       Alert.alert(
-        'Family Setup Complete! 👨‍👩‍👧‍👦',
-        `You've added ${familyMembers.length} family member${familyMembers.length !== 1 ? 's' : ''}. Our AI now understands your household complexity and will create meals that work for everyone!`,
+        'Setup Complete! 🎉',
+        `Welcome to Ingred! ${familyMembers.length > 0 ? `We've added ${familyMembers.length} family member${familyMembers.length !== 1 ? 's' : ''} and o` : 'O'}ur AI is ready to create amazing meal plans for your family.`,
         [
           {
-            text: 'Generate First Meal Plan',
+            text: 'Generate First Recipe',
             onPress: () => {
-              console.log('🚀 Navigate to first meal plan generation');
-              router.push('/test-recipe'); // For now, use test screen
+              console.log('🚀 Navigate to first recipe generation');
+              router.replace('/test-recipe'); // For now, use test screen
             }
           }
         ]
       );
     } catch (error) {
-      Alert.alert('Error', 'Something went wrong. Please try again.');
+      Alert.alert('Error', 'Something went wrong completing setup. Please try again.');
     } finally {
       setLoading(false);
     }
   };
-
-  const safetyAnalysis = detectSafetyConflicts();
 
   return (
     <View style={styles.container}>
@@ -303,9 +230,9 @@ export default function FamilyMemberSetupScreen() {
           <Text style={styles.backButtonText}>← Back</Text>
         </TouchableOpacity>
         
-        <Text style={styles.title}>Family Member Setup</Text>
+        <Text style={styles.title}>Family Members</Text>
         <Text style={styles.subtitle}>
-          Add individual family members for personalized meal planning
+          Add family members for personalized meal planning (optional)
         </Text>
       </View>
 
@@ -315,8 +242,8 @@ export default function FamilyMemberSetupScreen() {
         <View style={styles.introduction}>
           <Text style={styles.introTitle}>🧠 Advanced Family Intelligence</Text>
           <Text style={styles.introText}>
-            This is where Ingred becomes truly powerful. Add family members with their specific 
-            needs, and our AI will create meals that satisfy everyone while coordinating safety 
+            This is optional but powerful! Add family members with their specific needs, 
+            and our AI will create meals that satisfy everyone while coordinating safety 
             requirements across your entire household.
           </Text>
         </View>
@@ -336,35 +263,19 @@ export default function FamilyMemberSetupScreen() {
                     {AGE_GROUPS.find(g => g.id === member.age_group)?.label || member.age_group}
                   </Text>
                 </View>
-                <View style={styles.memberActions}>
-                  <TouchableOpacity
-                    style={styles.editButton}
-                    onPress={() => editFamilyMember(member)}
-                  >
-                    <Text style={styles.editButtonText}>Edit</Text>
-                  </TouchableOpacity>
-                  {member.id && (
-                    <TouchableOpacity
-                      style={styles.deleteButton}
-                      onPress={() => deleteFamilyMember(member.id!)}
-                    >
-                      <Text style={styles.deleteButtonText}>Remove</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
+                <TouchableOpacity
+                  style={styles.editButton}
+                  onPress={() => {
+                    setEditingMember({ ...member });
+                    setShowMemberModal(true);
+                  }}
+                >
+                  <Text style={styles.editButtonText}>Edit</Text>
+                </TouchableOpacity>
               </View>
 
               {/* Member Details */}
               <View style={styles.memberDetails}>
-                {member.dietary_restrictions.length > 0 && (
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Dietary:</Text>
-                    <Text style={styles.detailValue}>
-                      {member.dietary_restrictions.join(', ')}
-                    </Text>
-                  </View>
-                )}
-                
                 {member.allergies.length > 0 && (
                   <View style={styles.detailRow}>
                     <Text style={styles.detailLabel}>⚠️ Allergies:</Text>
@@ -373,12 +284,12 @@ export default function FamilyMemberSetupScreen() {
                     </Text>
                   </View>
                 )}
-
-                {member.food_preferences.dislikes.length > 0 && (
+                
+                {member.dietary_restrictions.length > 0 && (
                   <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Dislikes:</Text>
+                    <Text style={styles.detailLabel}>Dietary:</Text>
                     <Text style={styles.detailValue}>
-                      {member.food_preferences.dislikes.join(', ')}
+                      {member.dietary_restrictions.join(', ')}
                     </Text>
                   </View>
                 )}
@@ -395,99 +306,24 @@ export default function FamilyMemberSetupScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Safety Analysis */}
-        {safetyAnalysis.requiresSpecialAttention && (
-          <View style={styles.safetySection}>
-            <Text style={styles.safetySectionTitle}>🛡️ Family Safety Coordination</Text>
-            
-            {safetyAnalysis.criticalAllergens.length > 0 && (
-              <View style={styles.safetyCard}>
-                <Text style={styles.safetyCardTitle}>Critical Allergens Detected</Text>
-                <Text style={styles.safetyCardText}>
-                  Our AI will automatically avoid: {safetyAnalysis.criticalAllergens.join(', ')}
-                  {'\n\n'}
-                  ⚠️ Always verify ingredients on product labels for complete safety.
-                </Text>
-              </View>
-            )}
-
-            {safetyAnalysis.conflicts.length > 0 && (
-              <View style={styles.conflictCard}>
-                <Text style={styles.conflictCardTitle}>Family Coordination Notes</Text>
-                {safetyAnalysis.conflicts.map((conflict, index) => (
-                  <Text key={index} style={styles.conflictText}>
-                    • {conflict}
-                  </Text>
-                ))}
-              </View>
-            )}
-          </View>
-        )}
-
-        {/* Benefits Explanation */}
-        <View style={styles.benefitsSection}>
-          <Text style={styles.benefitsTitle}>Why Individual Family Members Matter</Text>
-          <View style={styles.benefitsList}>
-            <View style={styles.benefitItem}>
-              <Text style={styles.benefitIcon}>🎯</Text>
-              <View style={styles.benefitContent}>
-                <Text style={styles.benefitTitle}>Coordinated Safety</Text>
-                <Text style={styles.benefitDescription}>
-                  Our AI ensures meals are safe for everyone while accommodating individual needs
-                </Text>
-              </View>
-            </View>
-            <View style={styles.benefitItem}>
-              <Text style={styles.benefitIcon}>🍽️</Text>
-              <View style={styles.benefitContent}>
-                <Text style={styles.benefitTitle}>Family Harmony</Text>
-                <Text style={styles.benefitDescription}>
-                  Reduce mealtime conflicts by creating meals everyone can enjoy
-                </Text>
-              </View>
-            </View>
-            <View style={styles.benefitItem}>
-              <Text style={styles.benefitIcon}>🧠</Text>
-              <View style={styles.benefitContent}>
-                <Text style={styles.benefitTitle}>Smart Adaptations</Text>
-                <Text style={styles.benefitDescription}>
-                  Recipes automatically adapt for special occasions and individual preferences
-                </Text>
-              </View>
-            </View>
-          </View>
-        </View>
-
         <View style={styles.bottomSpacing} />
       </ScrollView>
 
       {/* Footer */}
       <View style={styles.footer}>
         <TouchableOpacity
-          style={styles.skipButton}
-          onPress={() => {
-            Alert.alert(
-              'Skip Family Setup?',
-              'You can always add family members later in settings. For now, we\'ll create meal plans based on your basic preferences.',
-              [
-                { text: 'Continue Setup', style: 'cancel' },
-                { text: 'Skip for Now', onPress: completeFamilySetup }
-              ]
-            );
-          }}
-        >
-          <Text style={styles.skipButtonText}>Skip - Use Basic Preferences Only</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.continueButton, loading && styles.continueButtonDisabled]}
-          onPress={completeFamilySetup}
+          style={[styles.completeButton, loading && styles.completeButtonDisabled]}
+          onPress={completeOnboarding}
           disabled={loading}
         >
-          <Text style={styles.continueButtonText}>
-            {loading ? 'Setting Up...' : `Complete Setup with ${familyMembers.length} Member${familyMembers.length !== 1 ? 's' : ''}`}
+          <Text style={styles.completeButtonText}>
+            {loading ? 'Completing Setup...' : 'Complete Setup & Start Meal Planning'}
           </Text>
         </TouchableOpacity>
+
+        <Text style={styles.footerNote}>
+          You can always add or edit family members later in settings
+        </Text>
       </View>
 
       {/* Family Member Modal */}
@@ -628,35 +464,6 @@ function FamilyMemberModal({ visible, member, onSave, onClose }: FamilyMemberMod
             </View>
           </View>
 
-          {/* Food Preferences */}
-          <View style={styles.modalSection}>
-            <Text style={styles.modalSectionTitle}>Food Preferences (Optional)</Text>
-            <TextInput
-              style={styles.modalTextArea}
-              placeholder="Foods they love (e.g., pizza, pasta, fruit)"
-              value={editedMember.food_preferences.loves.join(', ')}
-              onChangeText={(text) => 
-                updateMember('food_preferences', {
-                  ...editedMember.food_preferences,
-                  loves: text.split(',').map(item => item.trim()).filter(item => item.length > 0)
-                })
-              }
-              multiline
-            />
-            <TextInput
-              style={styles.modalTextArea}
-              placeholder="Foods they dislike (e.g., mushrooms, olives)"
-              value={editedMember.food_preferences.dislikes.join(', ')}
-              onChangeText={(text) => 
-                updateMember('food_preferences', {
-                  ...editedMember.food_preferences,
-                  dislikes: text.split(',').map(item => item.trim()).filter(item => item.length > 0)
-                })
-              }
-              multiline
-            />
-          </View>
-
           <View style={styles.modalBottomSpacing} />
         </ScrollView>
       </View>
@@ -722,8 +529,6 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     lineHeight: 20,
   },
-
-  // Members Section
   membersSection: {
     paddingHorizontal: 20,
     paddingVertical: 24,
@@ -766,10 +571,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6B7280',
   },
-  memberActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
   editButton: {
     backgroundColor: '#8B5CF6',
     paddingHorizontal: 12,
@@ -777,17 +578,6 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   editButtonText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  deleteButton: {
-    backgroundColor: '#EF4444',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-  },
-  deleteButtonText: {
     color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '500',
@@ -829,98 +619,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  // Safety Section
-  safetySection: {
-    paddingHorizontal: 20,
-    paddingVertical: 24,
-    backgroundColor: '#FFFBEB',
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: '#FEF3C7',
-  },
-  safetySectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 16,
-  },
-  safetyCard: {
-    backgroundColor: '#FEF2F2',
-    padding: 16,
-    borderRadius: 8,
-    borderLeftWidth: 4,
-    borderLeftColor: '#EF4444',
-    marginBottom: 12,
-  },
-  safetyCardTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#DC2626',
-    marginBottom: 8,
-  },
-  safetyCardText: {
-    fontSize: 14,
-    color: '#7F1D1D',
-    lineHeight: 20,
-  },
-  conflictCard: {
-    backgroundColor: '#EFF6FF',
-    padding: 16,
-    borderRadius: 8,
-    borderLeftWidth: 4,
-    borderLeftColor: '#3B82F6',
-  },
-  conflictCardTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1D4ED8',
-    marginBottom: 8,
-  },
-  conflictText: {
-    fontSize: 14,
-    color: '#1E40AF',
-    lineHeight: 20,
-  },
-
-  // Benefits Section
-  benefitsSection: {
-    paddingHorizontal: 20,
-    paddingVertical: 24,
-  },
-  benefitsTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  benefitsList: {
-    gap: 16,
-  },
-  benefitItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-  benefitIcon: {
-    fontSize: 24,
-    marginRight: 12,
-    marginTop: 4,
-  },
-  benefitContent: {
-    flex: 1,
-  },
-  benefitTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 4,
-  },
-  benefitDescription: {
-    fontSize: 14,
-    color: '#6B7280',
-    lineHeight: 20,
-  },
-
   // Footer
   footer: {
     padding: 20,
@@ -928,36 +626,32 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
   },
-  skipButton: {
-    paddingVertical: 12,
-    marginBottom: 12,
-  },
-  skipButtonText: {
-    color: '#6B7280',
-    fontSize: 16,
-    fontWeight: '500',
-    textAlign: 'center',
-    textDecorationLine: 'underline',
-  },
-  continueButton: {
+  completeButton: {
     backgroundColor: '#8B5CF6',
     paddingVertical: 16,
     borderRadius: 12,
+    marginBottom: 12,
     shadowColor: '#8B5CF6',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
   },
-  continueButtonDisabled: {
+  completeButtonDisabled: {
     backgroundColor: '#D1D5DB',
     shadowOpacity: 0,
   },
-  continueButtonText: {
+  completeButtonText: {
     color: '#FFFFFF',
     fontSize: 18,
     fontWeight: '600',
     textAlign: 'center',
+  },
+  footerNote: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 20,
   },
 
   // Modal Styles
@@ -1013,18 +707,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 16,
     color: '#374151',
-  },
-  modalTextArea: {
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: '#374151',
-    minHeight: 60,
-    marginBottom: 8,
-    textAlignVertical: 'top',
   },
   optionGrid: {
     gap: 8,

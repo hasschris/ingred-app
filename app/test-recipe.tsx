@@ -97,7 +97,7 @@ export default function TestRecipeScreen() {
         userId: user.id,
         preferences: testPreferences,
         mealType: mealType,
-        pantryItems: ['onions', 'garlic', 'olive oil', 'tomatoes']
+        // pantryItems: ['common grocery ingredients']  // ← Much more variety!
       };
 
       const result = await IngredAI.generateRecipe(request);
@@ -188,7 +188,7 @@ export default function TestRecipeScreen() {
         userId: user.id,
         preferences: complexFamilyPreferences,
         mealType: 'dinner',
-        pantryItems: ['rice', 'vegetables', 'olive oil', 'herbs']
+        // pantryItems: ['common grocery ingredients']
       };
 
       console.log('👨‍👩‍👧‍👦 Complex family request:', JSON.stringify(request, null, 2));

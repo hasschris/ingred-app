@@ -40,6 +40,18 @@ export default function IndexScreen() {
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [checkingState, setCheckingState] = useState(true);
 
+  // DEBUG: Log state changes
+  useEffect(() => {
+    console.log('🔍 INDEX RENDER STATE:', {
+      user: !!user,
+      userId: user?.id,
+      isLoading,
+      checkingState,
+      onboardingState,
+      userStats
+    });
+  }, [user, isLoading, checkingState, onboardingState, userStats]);
+
   // Check user's onboarding state when authenticated
   useEffect(() => {
     if (user) {
@@ -171,6 +183,7 @@ export default function IndexScreen() {
 
   // Show loading state
   if (isLoading || checkingState) {
+    console.log('🔄 SHOWING LOADING STATE - isLoading:', isLoading, 'checkingState:', checkingState);
     return (
       <View style={styles.loadingContainer}>
         <Text style={styles.logo}>🍽️</Text>
@@ -182,6 +195,7 @@ export default function IndexScreen() {
 
   // New user welcome experience
   if (!user) {
+    console.log('🆕 SHOWING NEW USER WELCOME - user is null/undefined');
     return (
       <ScrollView style={styles.container}>
         {/* Hero Section */}
@@ -261,7 +275,10 @@ export default function IndexScreen() {
   }
 
   // Authenticated user with incomplete onboarding
-  if (!onboardingState?.onboardingCompleted) {
+  if (onboardingState !== null && !onboardingState?.onboardingCompleted) {
+    console.log('❌ SHOWING INCOMPLETE ONBOARDING SCREEN');
+    console.log('❌ onboardingCompleted value:', onboardingState?.onboardingCompleted);
+    console.log('❌ Full onboarding state:', onboardingState);
     return (
       <View style={styles.incompleteContainer}>
         <View style={styles.incompleteHeader}>
@@ -347,6 +364,8 @@ export default function IndexScreen() {
   }
 
   // Authenticated user with completed onboarding - Dashboard
+  console.log('✅ SHOWING COMPLETED DASHBOARD');
+  console.log('✅ onboardingCompleted is TRUE, user should see dashboard');
   return (
     <View style={styles.dashboardContainer}>
       <View style={styles.dashboardHeader}>

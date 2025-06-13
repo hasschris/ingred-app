@@ -196,6 +196,11 @@ export class IngredAI {
       const prompt = this.buildSafetyAwarePrompt(request)
       console.log('✅ Prompt built successfully');
 
+      // ADD THIS DEBUG CODE TO SEE THE ACTUAL PROMPTS
+      console.log('🔍 DEBUG - Meal Type:', request.mealType);
+      console.log('🔍 DEBUG - System Prompt:', prompt.systemPrompt);
+      console.log('🔍 DEBUG - User Prompt:', prompt.userPrompt);
+
       // Step 4: Generate recipe with OpenAI
       console.log('🧠 Calling OpenAI API...');
       
@@ -514,108 +519,27 @@ Return JSON format:
     return inputCost + outputCost
   }
 
-  /**
-   * Simplified Rate Limiting and Cost Protection (with debugging)
-   */
   private static async checkCostLimits(userId: string): Promise<{ allowed: boolean; message?: string }> {
-    try {
-      console.log('💰 Getting user subscription tier...');
-      
-      // Get user's subscription tier (simplified query)
-      const { data: userProfile, error: profileError } = await supabase
-        .from('user_profiles')
-        .select('subscription_tier')
-        .eq('id', userId)
-        .single()
-
-      if (profileError) {
-        console.log('⚠️ Could not get user profile, allowing request:', profileError.message);
-        return { allowed: true } // Allow on error for now
-      }
-
-      console.log('✅ User profile loaded:', userProfile?.subscription_tier);
-
-      const dailyLimit = userProfile?.subscription_tier === 'premium' 
-        ? COST_PROTECTION.max_daily_cost_premium 
-        : COST_PROTECTION.max_daily_cost_free
-
-      console.log('💰 Daily cost limit:', dailyLimit);
-
-      // Simplified: For testing, always allow but log the limit
-      console.log('✅ Cost check passed (simplified for testing)');
-      return { allowed: true }
-
-      /* TODO: Re-enable this once ai_usage_logs table is confirmed working
-      // Get today's usage
-      const today = new Date().toISOString().split('T')[0]
-      console.log('📅 Checking usage for date:', today);
-      
-      const { data: todayUsage, error: usageError } = await supabase
-        .from('ai_usage_logs')
-        .select('cost')
-        .eq('user_id', userId)
-        .gte('created_at', today)
-
-      if (usageError) {
-        console.log('⚠️ Could not get usage data, allowing request:', usageError.message);
-        return { allowed: true }
-      }
-
-      const totalCost = todayUsage?.reduce((sum, log) => sum + log.cost, 0) || 0
-      console.log('💰 Today\'s usage:', totalCost, 'Limit:', dailyLimit);
-
-      if (totalCost >= dailyLimit) {
-        return {
-          allowed: false,
-          message: userProfile?.subscription_tier === 'premium' 
-            ? 'Daily premium limit reached. Try again tomorrow.'
-            : 'Daily free limit reached. Upgrade to Premium for unlimited recipes!'
-        }
-      }
-
-      return { allowed: true }
-      */
-    } catch (error) {
-      console.error('💰 Cost limit check failed, allowing request:', error)
-      return { allowed: true } // Allow on error during testing
-    }
+  try {
+    console.log('💰 Cost check - SIMPLIFIED FOR TESTING');
+    // TEMPORARILY BYPASS ALL COST CHECKING FOR TESTING
+    return { allowed: true }
+  } catch (error) {
+    console.error('💰 Cost limit check failed, allowing request:', error)
+    return { allowed: true }
   }
+}
 
   private static async checkRateLimit(userId: string): Promise<{ allowed: boolean; message?: string }> {
-    try {
-      console.log('⏱️ Checking rate limits (simplified for testing)...');
-      
-      // Simplified: Always allow for testing
-      console.log('✅ Rate limit check passed (simplified for testing)');
-      return { allowed: true }
-
-      /* TODO: Re-enable this once ai_usage_logs table is confirmed working
-      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
-      const { data: recentUsage, error } = await supabase
-        .from('ai_usage_logs')
-        .select('id')
-        .eq('user_id', userId)
-        .gte('created_at', oneHourAgo)
-
-      if (error) {
-        console.log('⚠️ Could not get rate limit data, allowing request:', error.message);
-        return { allowed: true }
-      }
-
-      if ((recentUsage?.length || 0) > COST_PROTECTION.user_spike_threshold) {
-        return {
-          allowed: false,
-          message: 'Too many recipes generated recently. Please wait a bit before trying again.'
-        }
-      }
-
-      return { allowed: true }
-      */
-    } catch (error) {
-      console.error('⏱️ Rate limit check failed, allowing request:', error)
-      return { allowed: true } // Allow on error during testing
-    }
+  try {
+    console.log('⏱️ Rate limit check - SIMPLIFIED FOR TESTING');
+    // TEMPORARILY BYPASS ALL RATE LIMITING FOR TESTING
+    return { allowed: true }
+  } catch (error) {
+    console.error('⏱️ Rate limit check failed, allowing request:', error)
+    return { allowed: true }
   }
+}
 
   /**
    * Store Recipe in Database with Data Validation
@@ -655,20 +579,47 @@ Return JSON format:
       total_time: cleanedRecipe.total_time
     });
 
-    const { data, error } = await supabase
-      .from('generated_recipes')
-      .insert(cleanedRecipe)
-      .select()
-      .single()
+    console.log('💾 About to insert recipe into database...');
 
-    if (error) {
-      console.error('Failed to store recipe:', error)
-      console.error('Recipe data that failed:', cleanedRecipe)
-      throw new Error(`Failed to save recipe: ${error.message}`)
+    try {
+      // Set a reasonable timeout and try the insert
+      const insertResult = await Promise.race([
+        supabase
+          .from('generated_recipes')
+          .insert(cleanedRecipe)
+          .select()
+          .single(),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Database timeout')), 15000)
+        )
+      ]) as any;
+
+      console.log('💾 Database insert completed');
+      
+      if (insertResult.error) {
+        console.error('💾 Database insert error:', insertResult.error);
+        console.error('💾 Error code:', insertResult.error.code);
+        console.error('💾 Error message:', insertResult.error.message);
+        console.error('💾 Error details:', insertResult.error.details);
+        throw new Error(`Failed to save recipe: ${insertResult.error.message}`);
+      }
+      
+      if (insertResult.data) {
+        console.log('💾 Database insert success:', insertResult.data.id);
+        console.log('✅ Recipe stored successfully with ID:', insertResult.data.id);
+        return insertResult.data;
+      }
+      
+      throw new Error('No data returned from database insert');
+      
+    } catch (error: any) {
+      console.error('💾 Database operation failed:', error);
+      if (error.message?.includes('timeout')) {
+        console.error('💾 TIMEOUT: Database insert took longer than 15 seconds');
+        throw new Error('Database operation timed out. Please try again.');
+      }
+      throw error;
     }
-
-    console.log('✅ Recipe stored successfully with ID:', data.id)
-    return data
   }
 
   /**
@@ -725,38 +676,19 @@ Return JSON format:
     }
   }
 
-  /**
-   * Cached Recipe Retrieval for Cost Optimization
-   */
   private static async getCachedSimilarRecipe(request: RecipeGenerationRequest): Promise<any> {
-    try {
-      console.log('🗄️ Looking for cached similar recipes...');
-      
-      // Simple caching based on similar preferences
-      // In production, this would be more sophisticated
-      const { data: similarRecipes, error } = await supabase
-        .from('generated_recipes')
-        .select('*')
-        .eq('user_id', request.userId)
-        .limit(1)
-
-      if (error) {
-        console.log('⚠️ Cache lookup failed (non-blocking):', error.message);
-        return null;
-      }
-
-      if (similarRecipes && similarRecipes.length > 0) {
-        console.log('✅ Found cached recipe:', similarRecipes[0].title);
-        return similarRecipes[0];
-      } else {
-        console.log('🆕 No cached recipes found');
-        return null;
-      }
-    } catch (error) {
-      console.error('🗄️ Cache lookup error (non-blocking):', error);
-      return null;
-    }
+  try {
+    console.log('🗄️ Looking for cached similar recipes...');
+    
+    // TEMPORARILY DISABLED: Always return null to force new generation
+    console.log('🆕 Cache disabled for testing - generating fresh recipes');
+    return null;
+    
+  } catch (error) {
+    console.error('🗄️ Cache lookup error (non-blocking):', error);
+    return null;
   }
+}
 
   /**
    * Error Handling with Fallback Systems
