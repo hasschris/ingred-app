@@ -596,45 +596,68 @@ Return JSON format:
     });
 
     console.log('💾 About to insert recipe into database...');
+    console.log('💾 Using userId:', userId);
 
-try {
-      // Set a reasonable timeout and try the insert
-      const insertResult = await Promise.race([
-        supabase
-          .from('generated_recipes')
-          .insert(cleanedRecipe)
-          .select()
-          .single(),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Database timeout')), 15000)
-        )
-      ]) as any;
+    try {
+      // Production-ready database insert with timeout and detailed error handling
+      console.log('💾 Starting database insert operation...');
 
-      console.log('💾 Database insert completed');
+      const insertPromise = supabase
+        .from('generated_recipes')
+        .insert(cleanedRecipe)
+        .select()
+        .single();
       
+      // Add 10-second timeout for production reliability
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Database operation timeout - 10 seconds exceeded')), 10000)
+      );
+      
+      console.log('💾 Executing insert with timeout protection...');
+      const insertResult = await Promise.race([insertPromise, timeoutPromise]) as any;
+      
+      console.log('💾 Database operation completed');
+      
+      // Check for database errors
       if (insertResult.error) {
-        console.error('💾 Database insert error:', insertResult.error);
+        console.error('💾 Database insert error details:');
         console.error('💾 Error code:', insertResult.error.code);
         console.error('💾 Error message:', insertResult.error.message);
+        console.error('💾 Error hint:', insertResult.error.hint);
         console.error('💾 Error details:', insertResult.error.details);
-        throw new Error(`Failed to save recipe: ${insertResult.error.message}`);
+        
+        // Production error handling
+        if (insertResult.error.code === '42501') {
+          throw new Error('Database permission error. Please log out and log back in.');
+        } else if (insertResult.error.code === '23505') {
+          throw new Error('Recipe already exists. Please try generating a different recipe.');
+        } else {
+          throw new Error(`Database error: ${insertResult.error.message}`);
+        }
       }
       
+      // Check for successful data return
       if (insertResult.data) {
-        console.log('💾 Database insert success:', insertResult.data.id);
         console.log('✅ Recipe stored successfully with ID:', insertResult.data.id);
         return insertResult.data;
       }
       
-      throw new Error('No data returned from database insert');
+      throw new Error('Database insert completed but no data returned');
       
     } catch (error: any) {
-      console.error('💾 Database operation failed:', error);
+      console.error('💾 Database operation failed:', error.name, error.message);
+      
+      // Production error categorization
       if (error.message?.includes('timeout')) {
-        console.error('💾 TIMEOUT: Database insert took longer than 15 seconds');
-        throw new Error('Database operation timed out. Please try again.');
+        console.error('💾 TIMEOUT: Database operation took longer than 10 seconds');
+        throw new Error('Database is temporarily slow. Please try again.');
+      } else if (error.message?.includes('network')) {
+        console.error('💾 NETWORK: Connection issue detected');
+        throw new Error('Network connection issue. Please check your internet and try again.');
+      } else {
+        console.error('💾 UNKNOWN ERROR:', error);
+        throw new Error('Database error. Please try again or contact support.');
       }
-      throw error;
     }
   }
 
@@ -693,18 +716,18 @@ try {
   }
 
   private static async getCachedSimilarRecipe(request: RecipeGenerationRequest): Promise<any> {
-  try {
-    console.log('🗄️ Looking for cached similar recipes...');
-    
-    // TEMPORARILY DISABLED: Always return null to force new generation
-    console.log('🆕 Cache disabled for testing - generating fresh recipes');
-    return null;
-    
-  } catch (error) {
-    console.error('🗄️ Cache lookup error (non-blocking):', error);
-    return null;
+    try {
+      console.log('🗄️ Looking for cached similar recipes...');
+      
+      // TEMPORARILY DISABLED: Always return null to force new generation
+      console.log('🆕 Cache disabled for testing - generating fresh recipes');
+      return null;
+      
+    } catch (error) {
+      console.error('🗄️ Cache lookup error (non-blocking):', error);
+      return null;
+    }
   }
-}
 
   /**
    * Error Handling with Fallback Systems
