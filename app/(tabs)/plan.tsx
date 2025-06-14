@@ -10,11 +10,16 @@ import {
   StyleSheet,
   Dimensions,
   SafeAreaView,
+  Modal,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useAuth } from '../../lib/auth';
 import { supabase } from '../../lib/supabase';
 import { IngredAI, GeneratedRecipe } from '../../lib/ai-integration';
 import { DateUtils, MealPlanningService } from '../../lib/meal-planning';
+
+// Import our enhanced loading component
+import LoadingStates from '../../components/ui/LoadingStates';
 
 // Types for our meal planning system
 interface FamilyMember {
@@ -72,11 +77,14 @@ const { width } = Dimensions.get('window');
 
 export default function PlanScreen() {
   const { user } = useAuth();
+  const router = useRouter();
   const [currentWeek, setCurrentWeek] = useState<WeeklyPlan | null>(null);
   const [userPreferences, setUserPreferences] = useState<UserPreferences | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [generatingMeal, setGeneratingMeal] = useState<string | null>(null);
+  const [showGenerationModal, setShowGenerationModal] = useState(false);
+  const [currentGeneratingMeal, setCurrentGeneratingMeal] = useState<PlannedMeal | null>(null);
 
   // Get current week's Monday
   const getCurrentWeekStart = () => {
@@ -252,15 +260,10 @@ export default function PlanScreen() {
 
     const mealKey = `${mealSlot.meal_date}-${mealSlot.meal_type}`;
     setGeneratingMeal(mealKey);
+    setCurrentGeneratingMeal(mealSlot);
+    setShowGenerationModal(true);
 
     try {
-      // Show user that AI is working
-      Alert.alert(
-        '🧠 AI Recipe Generation',
-        'Creating a perfect recipe for your family. This usually takes 8-12 seconds.',
-        [{ text: 'Continue', style: 'default' }]
-      );
-
       // Generate recipe using AI
       const generationResult = await IngredAI.generateRecipe({
         userId: user.id,
@@ -271,6 +274,9 @@ export default function PlanScreen() {
 
       // Check if generation was successful
       if (!generationResult.success) {
+        // Close the generation modal first
+        setShowGenerationModal(false);
+        
         // Use the specific user message from AI integration if available
         const userMessage = generationResult.user_message || generationResult.error || 'Recipe generation failed';
         
@@ -291,11 +297,11 @@ export default function PlanScreen() {
       }
 
       if (!generationResult.recipe) {
+        setShowGenerationModal(false);
         throw new Error('No recipe data received');
       }
 
       const generatedRecipe = generationResult.recipe;
-
       const savedRecipe = generatedRecipe;
 
       // Create or update planned meal
@@ -311,6 +317,9 @@ export default function PlanScreen() {
 
       if (mealError) throw mealError;
 
+      // Close the generation modal
+      setShowGenerationModal(false);
+
       // Refresh the week view
       await loadWeeklyPlan(currentWeek?.week_start_date || getCurrentWeekStart());
 
@@ -323,6 +332,9 @@ export default function PlanScreen() {
 
     } catch (error) {
       console.error('Error generating recipe:', error);
+      
+      // Close the generation modal
+      setShowGenerationModal(false);
       
       // Check if this was a controlled failure from AI integration
       if (error instanceof Error && error.message.includes('generation failed')) {
@@ -340,7 +352,27 @@ export default function PlanScreen() {
       }
     } finally {
       setGeneratingMeal(null);
+      setCurrentGeneratingMeal(null);
     }
+  };
+
+  // Handle viewing recipe details
+  const handleViewRecipe = (meal: PlannedMeal) => {
+    if (!meal.recipe?.id) return;
+    
+    console.log('🔗 Navigating to recipe:', meal.recipe.id);
+    
+    // Navigate to recipe detail screen
+    router.push(`/recipe/${meal.recipe.id}`);
+  };
+
+  // Handle closing generation modal (user cancellation)
+  const handleCancelGeneration = () => {
+    setShowGenerationModal(false);
+    setGeneratingMeal(null);
+    setCurrentGeneratingMeal(null);
+    // Note: We can't actually cancel the AI generation once it's started
+    // But we can hide the UI and let it complete in the background
   };
 
   // Handle refresh
@@ -370,14 +402,18 @@ export default function PlanScreen() {
     return currentWeek?.meals.filter(meal => meal.meal_date === date) || [];
   };
 
+  // Enhanced loading state with LoadingStates component
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#8B5CF6" />
-          <Text style={styles.loadingText}>Loading your meal plan...</Text>
-          <Text style={styles.loadingSubtext}>Setting up your weekly calendar</Text>
-        </View>
+        <LoadingStates
+          type="loading"
+          title="Loading your meal plan..."
+          subtitle="Setting up your weekly calendar"
+          showProgress={false}
+          size="large"
+          style={styles.mainLoadingContainer}
+        />
       </SafeAreaView>
     );
   }
@@ -477,7 +513,7 @@ export default function PlanScreen() {
                           meal.recipe && styles.mealSlotFilled,
                           isGenerating && styles.mealSlotGenerating,
                         ]}
-                        onPress={() => meal.recipe ? null : generateMealRecipe(meal)}
+                        onPress={() => meal.recipe ? handleViewRecipe(meal) : generateMealRecipe(meal)}
                         disabled={isGenerating}
                         accessible={true}
                         accessibilityLabel={
@@ -487,10 +523,14 @@ export default function PlanScreen() {
                         }
                       >
                         {isGenerating ? (
-                          <View style={styles.generatingContainer}>
-                            <ActivityIndicator size="small" color="#8B5CF6" />
-                            <Text style={styles.generatingText}>Creating...</Text>
-                          </View>
+                          <LoadingStates
+                            type="ai-thinking"
+                            title="Creating..."
+                            subtitle="AI is working"
+                            size="small"
+                            animated={true}
+                            style={styles.mealSlotLoading}
+                          />
                         ) : meal.recipe ? (
                           <>
                             {/* Meal Type Badge */}
@@ -605,6 +645,38 @@ export default function PlanScreen() {
           </Text>
         </View>
       </ScrollView>
+
+      {/* Recipe Generation Modal */}
+      <Modal
+        visible={showGenerationModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={handleCancelGeneration}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <LoadingStates
+              type="recipe-generation"
+              title={`Creating ${currentGeneratingMeal?.meal_type} recipe`}
+              subtitle="AI is crafting the perfect meal for your family"
+              showProgress={true}
+              size="large"
+              animated={true}
+            />
+            
+            {/* Cancel button */}
+            <TouchableOpacity 
+              style={styles.cancelButton}
+              onPress={handleCancelGeneration}
+              accessible={true}
+              accessibilityLabel="Cancel recipe generation"
+              accessibilityRole="button"
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -617,24 +689,13 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
-  loadingContainer: {
+  
+  // Enhanced loading state
+  mainLoadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
+    margin: 20,
   },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#6B7280',
-    textAlign: 'center',
-  },
-  loadingSubtext: {
-    marginTop: 4,
-    fontSize: 14,
-    color: '#9CA3AF',
-    textAlign: 'center',
-  },
+  
   setupContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -796,17 +857,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEF3C7',
     borderColor: '#F59E0B',
   },
-  generatingContainer: {
+  
+  // Enhanced meal slot loading
+  mealSlotLoading: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    padding: 4,
   },
-  generatingText: {
-    marginTop: 8,
-    fontSize: 12,
-    color: '#D97706',
-    fontWeight: '500',
-  },
+  
   mealTypeBadge: {
     position: 'absolute',
     top: 6,
@@ -955,5 +1014,36 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     lineHeight: 18,
     textAlign: 'center',
+  },
+
+  // Recipe Generation Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    width: '100%',
+    maxWidth: 400,
+    alignItems: 'center',
+  },
+  cancelButton: {
+    marginTop: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+  },
+  cancelButtonText: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontWeight: '500',
   },
 });
