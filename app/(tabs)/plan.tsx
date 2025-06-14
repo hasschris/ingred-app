@@ -18,19 +18,14 @@ import { supabase } from '../../lib/supabase';
 import { IngredAI, GeneratedRecipe } from '../../lib/ai-integration';
 import { DateUtils, MealPlanningService } from '../../lib/meal-planning';
 
+// Import family safety components
+import { FamilyMember } from '../../components/family/FamilyMemberCard';
+import { CompactSafetyDisplay, FamilyImpactDisplay } from '../../components/family/SafetyCoordination';
+
 // Import our enhanced loading component
 import LoadingStates from '../../components/ui/LoadingStates';
 
 // Types for our meal planning system
-interface FamilyMember {
-  id: string;
-  name: string;
-  age_group: 'child' | 'teen' | 'adult' | 'senior';
-  dietary_restrictions: string[];
-  allergies: string[];
-  allergy_severity: string[];
-}
-
 interface UserPreferences {
   id: string;
   household_size: number;
@@ -75,7 +70,7 @@ interface WeeklyPlan {
 
 const { width } = Dimensions.get('window');
 
-export default function PlanScreen() {
+export default function EnhancedPlanScreen() {
   const { user } = useAuth();
   const router = useRouter();
   const [currentWeek, setCurrentWeek] = useState<WeeklyPlan | null>(null);
@@ -323,10 +318,15 @@ export default function PlanScreen() {
       // Refresh the week view
       await loadWeeklyPlan(currentWeek?.week_start_date || getCurrentWeekStart());
 
-      // Show success with safety reminder
+      // Show success with family-aware messaging
+      const familyMemberCount = userPreferences.family_members?.length || 0;
+      const familyMessage = familyMemberCount > 0 
+        ? `\n\n👨‍👩‍👧‍👦 Designed for your family of ${familyMemberCount + 1} with individual dietary needs considered.`
+        : '';
+
       Alert.alert(
         '✨ Recipe Generated!',
-        `${generatedRecipe.title} is ready for your family!\n\n🛡️ Remember to verify ingredients for allergies as always.`,
+        `${generatedRecipe.title} is ready for your family!${familyMessage}\n\n🛡️ Remember to verify ingredients for allergies as always.`,
         [{ text: 'Got it!', style: 'default' }]
       );
 
@@ -461,6 +461,16 @@ export default function PlanScreen() {
           </View>
         </View>
 
+        {/* Family Safety Overview - NEW! */}
+        {userPreferences.family_members && userPreferences.family_members.length > 0 && (
+          <View style={styles.familySafetyHeader}>
+            <CompactSafetyDisplay 
+              familyMembers={userPreferences.family_members}
+              maxDisplay={4}
+            />
+          </View>
+        )}
+
         {/* Cost Summary */}
         {currentWeek && (
           <View style={styles.costSummary}>
@@ -552,6 +562,14 @@ export default function PlanScreen() {
                               <Text style={styles.metaText}>📊 {meal.recipe.difficulty}</Text>
                             </View>
 
+                            {/* Family Impact Display - NEW! */}
+                            {userPreferences.family_members && userPreferences.family_members.length > 0 && (
+                              <FamilyImpactDisplay 
+                                familyMembers={userPreferences.family_members}
+                                recipeTitle={meal.recipe.title}
+                              />
+                            )}
+
                             {/* Allergen Warnings */}
                             {meal.recipe.detected_allergens && meal.recipe.detected_allergens.length > 0 && (
                               <View style={styles.allergenWarning}>
@@ -593,6 +611,15 @@ export default function PlanScreen() {
                             </Text>
                             <Text style={styles.emptyMealText}>Generate {meal.meal_type}</Text>
                             <Text style={styles.generateHint}>Tap to create</Text>
+                            
+                            {/* Show family considerations for empty slots too */}
+                            {userPreferences.family_members && userPreferences.family_members.length > 0 && (
+                              <View style={styles.familyPreview}>
+                                <Text style={styles.familyPreviewText}>
+                                  👨‍👩‍👧‍👦 For {userPreferences.family_members.length + 1} people
+                                </Text>
+                              </View>
+                            )}
                           </View>
                         )}
                       </TouchableOpacity>
@@ -604,7 +631,7 @@ export default function PlanScreen() {
           </View>
         )}
 
-        {/* Family Safety Notice */}
+        {/* Enhanced Family Safety Notice */}
         {userPreferences.family_members && userPreferences.family_members.length > 0 ? (
           <View style={styles.familySafetyNotice}>
             <Text style={styles.familySafetyTitle}>👨‍👩‍👧‍👦 Family Safety Coordination</Text>
@@ -613,6 +640,12 @@ export default function PlanScreen() {
               {userPreferences.family_members.length !== 1 ? 's' : ''} with individual dietary needs.
               Always verify ingredients for everyone's safety.
             </Text>
+            
+            {/* Show family impact summary */}
+            <FamilyImpactDisplay 
+              familyMembers={userPreferences.family_members}
+            />
+            
             <View style={styles.familyMembersList}>
               {userPreferences.family_members.map((member, index) => (
                 <View key={member.id} style={styles.familyMemberItem}>
@@ -646,7 +679,7 @@ export default function PlanScreen() {
         </View>
       </ScrollView>
 
-      {/* Recipe Generation Modal */}
+      {/* Recipe Generation Modal with Family Context */}
       <Modal
         visible={showGenerationModal}
         transparent={true}
@@ -658,11 +691,26 @@ export default function PlanScreen() {
             <LoadingStates
               type="recipe-generation"
               title={`Creating ${currentGeneratingMeal?.meal_type} recipe`}
-              subtitle="AI is crafting the perfect meal for your family"
+              subtitle={
+                userPreferences.family_members && userPreferences.family_members.length > 0
+                  ? `AI is crafting the perfect meal for your family of ${userPreferences.family_members.length + 1}`
+                  : "AI is crafting the perfect meal for your family"
+              }
               showProgress={true}
               size="large"
               animated={true}
             />
+            
+            {/* Show family considerations during generation */}
+            {userPreferences.family_members && userPreferences.family_members.length > 0 && (
+              <View style={styles.generationFamilyInfo}>
+                <Text style={styles.generationFamilyTitle}>Family Considerations:</Text>
+                <CompactSafetyDisplay 
+                  familyMembers={userPreferences.family_members}
+                  maxDisplay={3}
+                />
+              </View>
+            )}
             
             {/* Cancel button */}
             <TouchableOpacity 
@@ -771,6 +819,16 @@ const styles = StyleSheet.create({
     color: '#7C3AED',
     fontWeight: '600',
   },
+
+  // NEW: Family Safety Header
+  familySafetyHeader: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+
   costSummary: {
     flexDirection: 'row',
     backgroundColor: '#FFFFFF',
@@ -839,7 +897,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 8,
     marginBottom: 8,
-    minHeight: 120,
+    minHeight: 140, // Increased to accommodate family impact
     borderWidth: 1,
     borderColor: '#E5E7EB',
     position: 'relative',
@@ -891,7 +949,7 @@ const styles = StyleSheet.create({
   recipeMeta: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   metaText: {
     fontSize: 10,
@@ -900,7 +958,7 @@ const styles = StyleSheet.create({
   allergenWarning: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 4,
   },
   allergenIcon: {
     fontSize: 12,
@@ -964,7 +1022,25 @@ const styles = StyleSheet.create({
   generateHint: {
     fontSize: 9,
     color: '#9CA3AF',
+    marginBottom: 8,
   },
+
+  // NEW: Family preview in empty slots
+  familyPreview: {
+    backgroundColor: '#F0F9FF',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  familyPreviewText: {
+    fontSize: 8,
+    color: '#1E40AF',
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+
   familySafetyNotice: {
     backgroundColor: '#FFFFFF',
     margin: 16,
@@ -1016,7 +1092,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  // Recipe Generation Modal
+  // Recipe Generation Modal with Family Context
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
@@ -1032,6 +1108,21 @@ const styles = StyleSheet.create({
     maxWidth: 400,
     alignItems: 'center',
   },
+
+  // NEW: Family info during generation
+  generationFamilyInfo: {
+    marginTop: 16,
+    marginBottom: 8,
+    alignSelf: 'stretch',
+  },
+  generationFamilyTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+
   cancelButton: {
     marginTop: 16,
     paddingHorizontal: 20,
