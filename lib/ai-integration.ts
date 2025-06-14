@@ -409,56 +409,74 @@ export class IngredAI {
   ) {
     const { preferences, mealType, specialOccasion } = request
 
+    // Build comprehensive avoidance list
+    const allFoodAvoidances = []
+    preferences.family_members?.forEach(member => {
+      member.allergies.forEach(allergy => {
+        allFoodAvoidances.push(`${allergy} (ALLERGY - ${member.name})`)
+      })
+      member.dislikes.forEach(dislike => {
+        allFoodAvoidances.push(`${dislike.replace(/_/g, ' ')} (DISLIKE - ${member.name})`)
+      })
+    })
+
     const systemPrompt = `You are Ingred, an AI meal planning assistant specializing in sophisticated family-safe meal planning.
 
 CRITICAL FAMILY INTELLIGENCE REQUIREMENTS:
 
 1. FAMILY COMPOSITION: This recipe serves ${preferences.household_size} people with ${preferences.family_members?.length || 0} individual family members with unique needs.
 
-2. ALLERGEN SAFETY MATRIX: 
+2. ⚠️ ABSOLUTE FOOD AVOIDANCES - NEVER INCLUDE THESE:
+${allFoodAvoidances.length > 0 
+  ? allFoodAvoidances.map(item => `- ${item}`).join('\n')
+  : '- No specific avoidances'}
+
+3. ALLERGEN SAFETY MATRIX: 
 ${familyAnalysis.total_allergies.length > 0 
   ? `- CRITICAL ALLERGENS TO AVOID: ${familyAnalysis.total_allergies.join(', ')}
 - Critical allergy members: ${familyAnalysis.critical_members.map((m: any) => m.name).join(', ')}`
   : '- No known family allergies'}
 
-3. INDIVIDUAL FAMILY MEMBER CONSIDERATIONS:
+4. INDIVIDUAL FAMILY MEMBER CONSIDERATIONS:
 ${preferences.family_members?.map(member => 
   `- ${member.name} (${member.age_group}): 
-    * Allergies: ${member.allergies.join(', ') || 'None'}
+    * ALLERGIES (NEVER USE): ${member.allergies.join(', ') || 'None'}
+    * DISLIKES (MUST AVOID): ${member.dislikes.map(d => d.replace(/_/g, ' ')).join(', ') || 'None'}
     * Dietary restrictions: ${member.dietary_restrictions.join(', ') || 'None'}
-    * Major dislikes: ${member.dislikes.slice(0, 3).join(', ') || 'None'}
     * Special needs: ${member.special_needs || 'None'}`
 ).join('\n') || '- No individual family members configured'}
 
-4. FAMILY COMPLEXITY ANALYSIS:
+5. FAMILY COMPLEXITY ANALYSIS:
 - Complexity score: ${familyAnalysis.complexity_score}/10
 - Family summary: ${familyAnalysis.summary}
 
-5. DIETARY COORDINATION:
+6. DIETARY COORDINATION:
 ${familyAnalysis.dietary_conflicts ? 
   `- DIETARY CONFLICT RESOLUTION NEEDED: ${familyAnalysis.vegetarians.join(', ')} (vegetarian) vs ${familyAnalysis.non_vegetarians.join(', ')} (non-vegetarian)` :
   '- No dietary conflicts detected'}
 
-6. AGE-APPROPRIATE CONSIDERATIONS:
+7. AGE-APPROPRIATE CONSIDERATIONS:
 ${familyAnalysis.children_count > 0 ? `- Child-friendly requirements for ${familyAnalysis.children_count} children` : ''}
 ${familyAnalysis.teen_count > 0 ? `- Teen-appropriate portions and flavors for ${familyAnalysis.teen_count} teenagers` : ''}
 
 ${specialOccasion ? `
-7. SPECIAL OCCASION: ${specialOccasion.occasion_type} with ${specialOccasion.guest_count} guests.
+8. SPECIAL OCCASION: ${specialOccasion.occasion_type} with ${specialOccasion.guest_count} guests.
 Guest restrictions: ${specialOccasion.guest_dietary_restrictions?.join(', ') || 'none'}.
 ` : ''}
+
+CRITICAL RULE: NEVER include any ingredient from the "ABSOLUTE FOOD AVOIDANCES" list above. This includes both allergies AND dislikes.
 
 Your mission: Generate recipes that bring families together safely while accommodating individual needs.`
 
     const mealTypePrompts = {
-      breakfast: "Create a family breakfast that energizes everyone for their day while respecting individual dietary needs:",
-      lunch: "Create a family lunch that satisfies different preferences while maintaining nutritional balance:",
-      dinner: "Create a family dinner that brings everyone together while accommodating individual restrictions:"
+      breakfast: "Create a family breakfast that energizes everyone for their day while respecting individual dietary needs and food preferences:",
+      lunch: "Create a family lunch that satisfies different preferences while maintaining nutritional balance and avoiding all listed food avoidances:",
+      dinner: "Create a family dinner that brings everyone together while accommodating individual restrictions and avoiding disliked foods:"
     };
 
     const familyGuidance = familyAnalysis.individual_needs.length > 0 
       ? `\nSpecific family member guidance:\n${familyAnalysis.individual_needs.map((member: any) => 
-          `- For ${member.name}: Ensure safe for their restrictions (${member.restrictions.join(', ')})${member.critical ? ' - CRITICAL SAFETY REQUIRED' : ''}`
+          `- For ${member.name}: Ensure recipe avoids ALL their restrictions (${member.restrictions.join(', ')})${member.critical ? ' - CRITICAL SAFETY REQUIRED' : ''}`
         ).join('\n')}`
       : '';
 
@@ -474,13 +492,16 @@ ${familyGuidance}
 
 ${request.pantryItems?.length ? `
 Available ingredients: ${request.pantryItems.join(', ')}
-` : 'Use common grocery store ingredients.'}
+` : 'Use common grocery store ingredients that avoid the listed food avoidances.'}
 
 FAMILY INTELLIGENCE REQUIREMENTS:
+- NEVER include ingredients that any family member dislikes or is allergic to
 - Address each family member's needs explicitly
 - Suggest modifications for conflicting dietary requirements
 - Provide child-friendly alternatives if needed
 - Include family bonding elements in the recipe
+
+REMINDER: Double-check that NO ingredients from the "ABSOLUTE FOOD AVOIDANCES" list appear in your recipe.
 
 Return JSON format:
 {
@@ -493,7 +514,7 @@ Return JSON format:
   "total_time": 45,
   "servings": ${preferences.household_size},
   "difficulty": "easy",
-  "family_reasoning": "Detailed explanation of how this recipe specifically works for your family composition and individual needs",
+  "family_reasoning": "Detailed explanation of how this recipe specifically works for your family composition and individual needs, including what foods were avoided",
   "allergen_considerations": "Specific allergen safety notes for each family member",
   "dietary_compliance": ["list", "of", "dietary", "restrictions", "met"],
   "nutrition_highlights": "Nutritional benefits for different age groups in your family",
@@ -507,7 +528,7 @@ Return JSON format:
     }
   ],
   "family_adaptations": ["How to modify for different family members", "Alternative preparations"],
-  "family_impact_summary": "One sentence on how this recipe brings your specific family together safely"
+  "family_impact_summary": "One sentence on how this recipe brings your specific family together safely while avoiding disliked foods"
 }`
 
     return { systemPrompt, userPrompt }
@@ -765,7 +786,7 @@ Return JSON format:
       safety_score: Math.min(100, Math.max(0, parseInt(recipe.safety_score) || 100)),
       generation_cost: metadata.generation_cost,
       generation_time_ms: metadata.generation_time_ms,
-      // Enhanced family fields
+      // Enhanced family intelligence fields
       family_member_considerations: recipe.family_member_considerations || [],
       family_adaptations: recipe.family_adaptations || [],
       family_impact_summary: recipe.family_impact_summary || ''
