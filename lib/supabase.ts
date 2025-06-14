@@ -52,10 +52,9 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
  * Simple Auth Helpers (NO TIMEOUT WRAPPERS)
  */
 
-// Get current user - simple and direct (backwards compatible)
-export const getCurrentUser = async (timeoutMs?: number) => {
+// Get current user - simple and direct
+export const getCurrentUser = async () => {
   console.log('🔍 Getting current user...')
-  // Note: timeoutMs parameter kept for backwards compatibility but ignored
   try {
     const { data, error } = await supabase.auth.getUser()
     if (error) {
@@ -70,10 +69,9 @@ export const getCurrentUser = async (timeoutMs?: number) => {
   }
 }
 
-// Get current session - simple and direct (backwards compatible)
-export const getCurrentSession = async (timeoutMs?: number) => {
+// Get current session - simple and direct  
+export const getCurrentSession = async () => {
   console.log('🔍 Getting current session...')
-  // Note: timeoutMs parameter kept for backwards compatibility but ignored
   try {
     const { data, error } = await supabase.auth.getSession()
     if (error) {
