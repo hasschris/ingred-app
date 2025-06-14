@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { useAuth } from '../../lib/auth';
 import { supabase } from '../../lib/supabase';
-import { IngredAI } from '../../lib/ai-integration';
+import { IngredAI, GeneratedRecipe } from '../../lib/ai-integration';
 import { DateUtils, MealPlanningService } from '../../lib/meal-planning';
 
 // Types for our meal planning system
@@ -45,29 +45,6 @@ interface DetectedAllergen {
   severity: 'mild' | 'moderate' | 'severe' | 'life_threatening';
   icon: string;
   warning_text: string;
-}
-
-interface GeneratedRecipe {
-  title: string;
-  description: string;
-  ingredients: string[];
-  instructions: string[];
-  prep_time: number;
-  cook_time: number;
-  total_time: number;
-  servings: number;
-  difficulty: 'easy' | 'medium' | 'hard';
-  family_reasoning: string;
-  allergen_considerations: string;
-  dietary_compliance: string[];
-  nutrition_highlights: string;
-  safety_notes: string;
-  ai_generated: boolean;
-  detected_allergens: DetectedAllergen[];
-  safety_warnings: string[];
-  safety_score: number;
-  generation_cost: number;
-  estimated_cost?: number;
 }
 
 interface SavedRecipe extends GeneratedRecipe {
@@ -319,31 +296,7 @@ export default function PlanScreen() {
 
       const generatedRecipe = generationResult.recipe;
 
-      // Save recipe to database
-      const { data: savedRecipe, error: recipeError } = await supabase
-        .from('generated_recipes')
-        .insert({
-          user_id: user.id,
-          title: generatedRecipe.title,
-          description: generatedRecipe.description,
-          ingredients: generatedRecipe.ingredients,
-          instructions: generatedRecipe.instructions,
-          prep_time: generatedRecipe.prep_time,
-          cook_time: generatedRecipe.cook_time,
-          total_time: generatedRecipe.total_time,
-          servings: generatedRecipe.servings,
-          difficulty: generatedRecipe.difficulty,
-          family_reasoning: generatedRecipe.family_reasoning,
-          detected_allergens: generatedRecipe.detected_allergens,
-          safety_warnings: generatedRecipe.safety_warnings,
-          safety_score: generatedRecipe.safety_score,
-          generation_cost: generatedRecipe.generation_cost,
-          ai_generated: true,
-        })
-        .select()
-        .single();
-
-      if (recipeError) throw recipeError;
+      const savedRecipe = generatedRecipe;
 
       // Create or update planned meal
       const { error: mealError } = await supabase

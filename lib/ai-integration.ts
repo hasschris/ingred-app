@@ -80,6 +80,7 @@ export interface SpecialOccasionContext {
 }
 
 export interface GeneratedRecipe {
+  id?: string
   title: string
   description: string
   ingredients: string[]
@@ -102,6 +103,7 @@ export interface GeneratedRecipe {
   safety_score: number
   generation_cost: number
   generation_time_ms: number
+  estimated_cost?: number
   cache_hit?: boolean
 }
 
@@ -267,6 +269,7 @@ export class IngredAI {
       return {
         success: true,
         recipe: {
+          id: storedRecipe.id,
           ...enhancedRecipe,
           title: enhancedRecipe.title || 'Generated Recipe',
           description: enhancedRecipe.description || 'AI-generated family recipe',
@@ -536,29 +539,29 @@ Return JSON format:
   }
 
   private static async checkCostLimits(userId: string): Promise<{ allowed: boolean; message?: string }> {
-  try {
-    console.log('💰 Cost check - SIMPLIFIED FOR TESTING');
-    // TEMPORARILY BYPASS ALL COST CHECKING FOR TESTING
-    return { allowed: true }
-  } catch (error) {
-    console.error('💰 Cost limit check failed, allowing request:', error)
-    return { allowed: true }
+    try {
+      console.log('💰 Cost check - SIMPLIFIED FOR TESTING');
+      // TEMPORARILY BYPASS ALL COST CHECKING FOR TESTING
+      return { allowed: true }
+    } catch (error) {
+      console.error('💰 Cost limit check failed, allowing request:', error)
+      return { allowed: true }
+    }
   }
-}
 
   private static async checkRateLimit(userId: string): Promise<{ allowed: boolean; message?: string }> {
-  try {
-    console.log('⏱️ Rate limit check - SIMPLIFIED FOR TESTING');
-    // TEMPORARILY BYPASS ALL RATE LIMITING FOR TESTING
-    return { allowed: true }
-  } catch (error) {
-    console.error('⏱️ Rate limit check failed, allowing request:', error)
-    return { allowed: true }
+    try {
+      console.log('⏱️ Rate limit check - SIMPLIFIED FOR TESTING');
+      // TEMPORARILY BYPASS ALL RATE LIMITING FOR TESTING
+      return { allowed: true }
+    } catch (error) {
+      console.error('⏱️ Rate limit check failed, allowing request:', error)
+      return { allowed: true }
+    }
   }
-}
 
   /**
-   * Store Recipe in Database with Data Validation
+   * ENHANCED: Store Recipe in Database with Enhanced Error Handling
    */
   private static async storeRecipe(
     userId: string, 
@@ -576,8 +579,8 @@ Return JSON format:
       cook_time: parseInt(recipe.cook_time) || 0,
       total_time: parseInt(recipe.total_time) || parseInt(recipe.prep_time) + parseInt(recipe.cook_time) || 0,
       servings: parseInt(recipe.servings) || 4,
-      // Clean and validate difficulty
-      difficulty: this.validateDifficulty(recipe.difficulty),
+      // FIXED: Enhanced difficulty validation with detailed logging
+      difficulty: this.validateDifficultyWithLogging(recipe.difficulty),
       ai_generated: true,
       family_reasoning: recipe.family_reasoning || 'Generated for your family',
       detected_allergens: recipe.detected_allergens || [],
@@ -588,81 +591,159 @@ Return JSON format:
       generation_time_ms: metadata.generation_time_ms
     };
 
-    console.log('💾 Storing cleaned recipe data:', {
+    console.log('💾 ENHANCED: Storing cleaned recipe data:', {
       title: cleanedRecipe.title,
       difficulty: cleanedRecipe.difficulty,
       servings: cleanedRecipe.servings,
-      total_time: cleanedRecipe.total_time
+      total_time: cleanedRecipe.total_time,
+      user_id: cleanedRecipe.user_id,
+      ingredients_count: cleanedRecipe.ingredients.length,
+      instructions_count: cleanedRecipe.instructions.length
     });
 
-    console.log('💾 About to insert recipe into database...');
-    console.log('💾 Using userId:', userId);
-
     try {
-      // Production-ready database insert with timeout and detailed error handling
       console.log('💾 Starting database insert operation...');
 
-      const insertPromise = supabase
+      // ENHANCED: Single operation with comprehensive error handling
+      const { data, error } = await supabase
         .from('generated_recipes')
         .insert(cleanedRecipe)
         .select()
         .single();
       
-      // Add 10-second timeout for production reliability
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Database operation timeout - 10 seconds exceeded')), 10000)
-      );
-      
-      console.log('💾 Executing insert with timeout protection...');
-      const insertResult = await Promise.race([insertPromise, timeoutPromise]) as any;
-      
-      console.log('💾 Database operation completed');
-      
-      // Check for database errors
-      if (insertResult.error) {
-        console.error('💾 Database insert error details:');
-        console.error('💾 Error code:', insertResult.error.code);
-        console.error('💾 Error message:', insertResult.error.message);
-        console.error('💾 Error hint:', insertResult.error.hint);
-        console.error('💾 Error details:', insertResult.error.details);
+      // Check for any database errors immediately
+      if (error) {
+        console.error('💾 DETAILED ERROR ANALYSIS:');
+        console.error('💾 Error code:', error.code);
+        console.error('💾 Error message:', error.message);
+        console.error('💾 Error hint:', error.hint);
+        console.error('💾 Error details:', error.details);
         
-        // Production error handling
-        if (insertResult.error.code === '42501') {
+        // SPECIFIC handling for constraint violations
+        if (error.code === '23514') {
+          console.error('💾 CONSTRAINT VIOLATION DETAILS:');
+          console.error('💾 Attempted difficulty value:', cleanedRecipe.difficulty);
+          console.error('💾 Difficulty type:', typeof cleanedRecipe.difficulty);
+          console.error('💾 Difficulty length:', cleanedRecipe.difficulty?.length);
+          console.error('💾 Difficulty JSON:', JSON.stringify(cleanedRecipe.difficulty));
+          
+          // Check if it's really a difficulty issue or something else
+          throw new Error(`Database constraint violation. Difficulty: "${cleanedRecipe.difficulty}" (${typeof cleanedRecipe.difficulty}). Original error: ${error.message}`);
+        }
+        
+        // Handle other common errors
+        if (error.code === '42501') {
           throw new Error('Database permission error. Please log out and log back in.');
-        } else if (insertResult.error.code === '23505') {
+        } else if (error.code === '23505') {
           throw new Error('Recipe already exists. Please try generating a different recipe.');
         } else {
-          throw new Error(`Database error: ${insertResult.error.message}`);
+          throw new Error(`Database error (${error.code}): ${error.message}`);
         }
       }
       
-      // Check for successful data return
-      if (insertResult.data) {
-        console.log('✅ Recipe stored successfully with ID:', insertResult.data.id);
-        return insertResult.data;
+      // Success validation
+      if (data && data.id) {
+        console.log('✅ Recipe stored successfully with ID:', data.id);
+        console.log('✅ Stored difficulty value:', data.difficulty);
+        return data;
+      } else {
+        console.error('💾 No data returned from successful insert');
+        throw new Error('Database insert succeeded but no data returned');
       }
-      
-      throw new Error('Database insert completed but no data returned');
       
     } catch (error: any) {
-      console.error('💾 Database operation failed:', error.name, error.message);
+      console.error('💾 COMPREHENSIVE ERROR ANALYSIS:');
+      console.error('💾 Error type:', error.constructor.name);
+      console.error('💾 Error message:', error.message);
+      console.error('💾 Error stack:', error.stack);
       
-      // Production error categorization
-      if (error.message?.includes('timeout')) {
-        console.error('💾 TIMEOUT: Database operation took longer than 10 seconds');
-        throw new Error('Database is temporarily slow. Please try again.');
-      } else if (error.message?.includes('network')) {
-        console.error('💾 NETWORK: Connection issue detected');
-        throw new Error('Network connection issue. Please check your internet and try again.');
-      } else {
-        console.error('💾 UNKNOWN ERROR:', error);
-        throw new Error('Database error. Please try again or contact support.');
-      }
+      // Re-throw with context
+      throw new Error(`Recipe storage failed: ${error.message}`);
     }
   }
 
   /**
-   * Validate and Clean Difficulty Value
+   * ENHANCED: Difficulty validation with detailed logging
+   */
+  private static validateDifficultyWithLogging(difficulty: any): 'easy' | 'medium' | 'hard' {
+    console.log('🔍 DIFFICULTY VALIDATION:');
+    console.log('🔍 Raw difficulty value:', difficulty);
+    console.log('🔍 Difficulty type:', typeof difficulty);
+    console.log('🔍 Difficulty JSON:', JSON.stringify(difficulty));
+    
+    if (!difficulty || typeof difficulty !== 'string') {
+      console.log('🔍 Using default: medium (invalid input)');
+      return 'medium';
+    }
+
+    const cleaned = difficulty.toLowerCase().trim();
+    console.log('🔍 Cleaned difficulty:', `"${cleaned}"`);
+    
+    let result: 'easy' | 'medium' | 'hard';
+    
+    if (cleaned.includes('easy') || cleaned.includes('simple') || cleaned.includes('beginner')) {
+      result = 'easy';
+    } else if (cleaned.includes('hard') || cleaned.includes('difficult') || cleaned.includes('advanced') || cleaned.includes('challenging')) {
+      result = 'hard';
+    } else {
+      result = 'medium';
+    }
+    
+    console.log('🔍 Final difficulty result:', `"${result}"`);
+    return result;
+  }
+
+  /**
+   * NEW: Test the database constraint directly
+   */
+  static async testDifficultyConstraint() {
+    console.log('🧪 Testing difficulty constraint...');
+    
+    const testRecipe = {
+      user_id: 'test-user-id',
+      title: 'Test Recipe for Constraint',
+      description: 'Testing difficulty constraint',
+      ingredients: ['test ingredient'],
+      instructions: ['test instruction'],
+      prep_time: 10,
+      cook_time: 20,
+      total_time: 30,
+      servings: 4,
+      difficulty: 'hard', // Test the problematic value
+      ai_generated: true,
+      family_reasoning: 'Test',
+      detected_allergens: [],
+      safety_warnings: [],
+      ai_disclaimers: ['Test'],
+      safety_score: 100,
+      generation_cost: 0,
+      generation_time_ms: 0
+    };
+    
+    try {
+      const { data, error } = await supabase
+        .from('generated_recipes')
+        .insert(testRecipe)
+        .select()
+        .single();
+        
+      if (error) {
+        console.error('🧪 Test failed:', error);
+        return false;
+      } else {
+        console.log('🧪 Test passed! Recipe ID:', data.id);
+        // Clean up test data
+        await supabase.from('generated_recipes').delete().eq('id', data.id);
+        return true;
+      }
+    } catch (error) {
+      console.error('🧪 Test error:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Validate and Clean Difficulty Value (Legacy - replaced by validateDifficultyWithLogging)
    */
   private static validateDifficulty(difficulty: any): 'easy' | 'medium' | 'hard' {
     if (!difficulty || typeof difficulty !== 'string') {
