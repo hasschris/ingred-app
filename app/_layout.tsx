@@ -3,7 +3,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import { AuthProvider } from '../lib/auth'; // Add this import
+import { AuthProvider } from '../lib/auth';
 
 /**
  * Root App Layout - Main application structure and providers
@@ -12,7 +12,7 @@ import { AuthProvider } from '../lib/auth'; // Add this import
  * - Root navigation structure using Expo Router
  * - Safe area context for proper device handling
  * - Status bar configuration for premium appearance
- * - Global providers for authentication, legal compliance, and state management
+ * - Global providers for authentication and state management
  * - Consistent styling and theme setup
  * - Accessibility configuration
  * 
@@ -22,19 +22,12 @@ import { AuthProvider } from '../lib/auth'; // Add this import
  * - app/auth/ - Authentication screens (login, register)
  * - app/onboarding/ - User setup flow
  * - Modal screens and other overlays
- * 
- * Future Integration Points:
- * - Authentication context provider ✅ ADDED
- * - Legal compliance context
- * - AI safety management
- * - Error boundary and monitoring
- * - Deep linking configuration
  */
 
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
-      <AuthProvider> {/* Add this wrapper */}
+      <AuthProvider>
         {/* 
           StatusBar Configuration:
           - Auto style adapts to light/dark mode
@@ -80,7 +73,7 @@ export default function RootLayout() {
             
             {/* 
               Authentication Screens
-              Login, registration, password reset
+              Login and registration only
             */}
             <Stack.Screen 
               name="auth/login" 
@@ -106,48 +99,10 @@ export default function RootLayout() {
               }}
             />
             
-            <Stack.Screen 
-              name="auth/forgot-password" 
-              options={{
-                title: 'Reset Password',
-                headerShown: true,
-                headerStyle: styles.authHeader,
-                headerTitleStyle: styles.authHeaderTitle,
-                headerBackTitle: 'Sign In',
-                presentation: 'card',
-              }}
-            />
-            
-            {/* 
-              Legal & Privacy Screens
-              Terms, privacy policy, AI safety information
-            */}
-            <Stack.Screen 
-              name="auth/terms-privacy" 
-              options={{
-                title: 'Legal Information',
-                headerShown: true,
-                headerStyle: styles.authHeader,
-                headerTitleStyle: styles.authHeaderTitle,
-                headerBackTitle: 'Back',
-                presentation: 'modal',
-              }}
-            />
-            
             {/* 
               Onboarding Flow
-              User setup, family configuration, preferences
+              User setup, family configuration, legal consent
             */}
-            <Stack.Screen 
-              name="onboarding/welcome" 
-              options={{
-                title: 'Welcome',
-                headerShown: false,
-                gestureEnabled: false, // Prevent skipping onboarding steps
-                animation: 'fade',
-              }}
-            />
-            
             <Stack.Screen 
               name="onboarding/legal-consent" 
               options={{
@@ -179,9 +134,9 @@ export default function RootLayout() {
             />
             
             <Stack.Screen 
-              name="onboarding/first-meal-plan" 
+              name="onboarding/family-member-setup" 
               options={{
-                title: 'First Meal Plan',
+                title: 'Family Member Setup',
                 headerShown: false,
                 gestureEnabled: false,
                 animation: 'slide_from_right',
@@ -189,45 +144,17 @@ export default function RootLayout() {
             />
             
             {/* 
-              Recipe and Meal Screens
-              Individual recipe views, detailed meal planning
+              Test Recipe Screen
+              For development and testing
             */}
             <Stack.Screen 
-              name="recipe/[id]" 
+              name="test-recipe" 
               options={{
-                title: 'Recipe Details',
+                title: 'Test Recipe',
                 headerShown: true,
-                headerStyle: styles.recipeHeader,
-                headerTitleStyle: styles.recipeHeaderTitle,
+                headerStyle: styles.authHeader,
+                headerTitleStyle: styles.authHeaderTitle,
                 headerBackTitle: 'Back',
-                presentation: 'card',
-              }}
-            />
-            
-            <Stack.Screen 
-              name="meal/generate" 
-              options={{
-                title: 'Generate Recipe',
-                headerShown: true,
-                headerStyle: styles.recipeHeader,
-                headerTitleStyle: styles.recipeHeaderTitle,
-                headerBackTitle: 'Cancel',
-                presentation: 'modal',
-              }}
-            />
-            
-            {/* 
-              Shopping and Planning
-              Shopping lists, cost tracking, meal prep
-            */}
-            <Stack.Screen 
-              name="shopping/list" 
-              options={{
-                title: 'Shopping List',
-                headerShown: true,
-                headerStyle: styles.recipeHeader,
-                headerTitleStyle: styles.recipeHeaderTitle,
-                headerBackTitle: 'Plan',
                 presentation: 'card',
               }}
             />
@@ -248,7 +175,7 @@ export default function RootLayout() {
             />
           </Stack>
         </View>
-      </AuthProvider> {/* Close the wrapper */}
+      </AuthProvider>
     </SafeAreaProvider>
   );
 }
@@ -279,25 +206,6 @@ const styles = StyleSheet.create({
     color: '#1F2937',
     fontFamily: 'Inter',
   },
-
-  // Recipe/Content Header Styling
-  recipeHeader: {
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-    elevation: 2,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-
-  recipeHeaderTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1F2937',
-    fontFamily: 'Inter',
-  },
 });
 
 /**
@@ -309,9 +217,9 @@ const styles = StyleSheet.create({
  *    - Route to appropriate screen
  * 
  * 2. New User Flow:
- *    auth/register → onboarding/welcome → onboarding/legal-consent → 
+ *    auth/register → onboarding/legal-consent → 
  *    onboarding/basic-setup → onboarding/family-setup → 
- *    onboarding/first-meal-plan → (tabs)/index
+ *    onboarding/family-member-setup → (tabs)/index
  * 
  * 3. Returning User Flow:
  *    app/index → (tabs)/index (if onboarding complete)
@@ -321,34 +229,15 @@ const styles = StyleSheet.create({
  * 
  * Screen Hierarchy:
  * - Root screens: index, (tabs), auth/*, onboarding/*
- * - Modal screens: meal/generate, auth/terms-privacy
- * - Card screens: recipe/[id], shopping/list
+ * - Test screens: test-recipe
  * - Error screens: +not-found
  * 
- * Provider Integration: ✅ COMPLETED
- * This layout now includes:
- * - AuthProvider for user authentication state with GDPR compliance
- * - Future: LegalComplianceProvider for additional GDPR management
- * - Future: AISafetyProvider for content safety
- * - Future: ErrorBoundary for crash protection
- * - Future: ThemeProvider for design system
- * 
- * Accessibility Features:
- * - Screen reader friendly navigation structure
- * - Proper screen titles for context
- * - Gesture support where appropriate
- * - Focus management between screens
- * 
- * Performance Considerations:
- * - Lazy loading of heavy screens
- * - Optimised navigation transitions
- * - Memory management for background screens
- * - Image and asset optimisation
- * 
- * Legal & Safety Integration: ✅ COMPLETED
- * - Legal consent screens properly isolated
- * - AI content screens with safety context
- * - Privacy-compliant navigation tracking
- * - Secure routing for sensitive information
- * - GDPR-compliant authentication throughout
+ * Removed Routes (were causing warnings):
+ * - auth/forgot-password (not implemented)
+ * - auth/terms-privacy (not implemented)
+ * - onboarding/welcome (not implemented)
+ * - onboarding/first-meal-plan (not implemented)
+ * - recipe/[id] (not implemented)
+ * - meal/generate (not implemented)
+ * - shopping/list (not implemented)
  */

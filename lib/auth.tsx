@@ -9,6 +9,7 @@ import { supabase, getCurrentUser, getCurrentSession, clearAllAuthData, debugAut
  * - Enhanced signOut method with immediate router navigation
  * - Better error handling during logout
  * - Forced state updates for immediate UI response
+ * - Fixed text rendering issues
  */
 
 // Legal consent data structure for GDPR compliance
@@ -95,7 +96,7 @@ export function AuthProvider({ children }: AuthProviderProps): React.JSX.Element
       }, 10000) // 10 second timeout
       
       // Try to get existing session
-      const session = await getCurrentSession(5000) // 5 second timeout
+      const session = await getCurrentSession()
       
       if (session) {
         console.log('✅ Existing session found')
@@ -484,6 +485,7 @@ export function AuthProvider({ children }: AuthProviderProps): React.JSX.Element
     deleteAccount
   }
 
+  // FIXED: Ensure we're only returning JSX, no text strings
   return (
     <AuthContext.Provider value={value}>
       {children}
