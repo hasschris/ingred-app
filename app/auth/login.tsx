@@ -43,39 +43,40 @@ export default function LoginScreen() {
   };
 
   // Handle login
-  const handleLogin = async () => {
-    const validation = validateForm();
-    if (!validation.valid) {
-      Alert.alert('Login Error', validation.message);
-      return;
-    }
+const handleLogin = async () => {
+  const validation = validateForm();
+  if (!validation.valid) {
+    Alert.alert('Login Error', validation.message);
+    return;
+  }
 
-    setLoading(true);
+  setLoading(true);
 
-    try {
-      console.log('🔐 Attempting login...');
-      
-      const result = await signIn(email.trim().toLowerCase(), password);
+  try {
+    console.log('🔐 Attempting login...');
+    
+    const result = await signIn(email.trim().toLowerCase(), password);
 
-      if (result.success) {
-        console.log('✅ Login successful!');
-        router.replace('/');
-      } else {
-        Alert.alert(
-          'Login Failed',
-          result.message || 'Please check your email and password and try again.'
-        );
-      }
-    } catch (error) {
-      console.error('Login error:', error);
+    if (result.success) {
+      console.log('✅ Login successful!');
+      // DO NOT NAVIGATE HERE - let AuthProvider/index.tsx handle routing
+      // The auth state change will automatically trigger navigation
+    } else {
       Alert.alert(
-        'Login Failed', 
-        'An unexpected error occurred. Please try again.'
+        'Login Failed',
+        result.message || 'Please check your email and password and try again.'
       );
-    } finally {
-      setLoading(false);
     }
-  };
+  } catch (error) {
+    console.error('Login error:', error);
+    Alert.alert(
+      'Login Failed', 
+      'An unexpected error occurred. Please try again.'
+    );
+  } finally {
+    setLoading(false); // This will now always be called
+  }
+};
 
   // Handle password reset
   const handlePasswordReset = async () => {

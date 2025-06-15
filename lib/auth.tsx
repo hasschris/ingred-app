@@ -11,6 +11,7 @@ import { getUserIP, getUserAgent } from './ai-integration' // FIXED: Import the 
  * - Enhanced signUp method with proper legal consent recording
  * - Better error handling during registration
  * - Fixed logout routing and state management
+ * - Added login navigation handling
  */
 
 // Legal consent data structure for GDPR compliance
@@ -127,54 +128,89 @@ export function AuthProvider({ children }: AuthProviderProps): React.JSX.Element
   }
 
   const setupAuthListener = () => {
-    console.log('👂 Setting up auth state listener...')
+  console.log('👂 Setting up auth state listener...')
+  
+  const {
+    data: { subscription },
+  } = supabase.auth.onAuthStateChange(async (event, session) => {
+    console.log('🔄 Auth state changed:', event)
+    console.log('🐛 AUTH LISTENER - session value:', session ? 'EXISTS' : 'NULL')
+    console.log('🐛 AUTH LISTENER - about to update React state')
     
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('🔄 Auth state changed:', event)
-      
-      // Update state immediately
-      setSession(session)
-      setUser(session?.user ?? null)
-      
-      // Handle different auth events
-      switch (event) {
-        case 'INITIAL_SESSION':
-          console.log('🔄 Initial session loaded')
-          break
-        case 'SIGNED_IN':
-          console.log('✅ User signed in:', session?.user?.email)
-          if (session?.user) {
-            await logSecurityEventSafe(session.user.id, 'successful_login')
-          }
-          break
-        case 'SIGNED_OUT':
-          console.log('👋 User signed out')
-          await logSecurityEventSafe(null, 'logout')
-          break
-        case 'TOKEN_REFRESHED':
-          console.log('🔄 Token refreshed')
-          break
-        case 'USER_UPDATED':
-          console.log('👤 User updated')
-          break
-        case 'PASSWORD_RECOVERY':
-          console.log('🔐 Password recovery')
-          break
-        default:
-          console.log('🔄 Auth event:', event)
-      }
-      
-      // If we're not loading anymore, we're initialized
-      if (!isInitialized) {
-        setIsInitialized(true)
-        setIsLoading(false)
-      }
-    })
+    // Update state immediately
+    setSession(session)
+    setUser(session?.user ?? null)
+    
+    console.log('🐛 AUTH LISTENER - React state updated')
+    
+    // FINAL NAVIGATION SOLUTION - Conservative approach
+    if (event === 'SIGNED_OUT') {
+      console.log('🚨 LOGOUT DETECTED IN AUTH PROVIDER - Forcing navigation')
+      // Longer delay to ensure state is fully processed
+      setTimeout(() => {
+        try {
+          const { router } = require('expo-router')
+          // Use push instead of replace to be more conservative
+          router.push('/auth/login')
+          console.log('✅ Logout navigation successful from AuthProvider')
+        } catch (navError) {
+          console.error('❌ Logout navigation failed:', navError)
+        }
+      }, 300)
+    }
+    
+    if (event === 'SIGNED_IN' && session?.user) {
+      console.log('🚨 LOGIN DETECTED IN AUTH PROVIDER - Forcing navigation')
+      // Longer delay to ensure auth is fully processed
+      setTimeout(() => {
+        try {
+          const { router } = require('expo-router')
+          // Navigate to index, let it handle routing to tabs
+          router.push('/')
+          console.log('✅ Login navigation successful from AuthProvider')
+        } catch (navError) {
+          console.error('❌ Login navigation failed:', navError)
+        }
+      }, 300)
+    }
+    
+    // Handle different auth events (logging only)
+    switch (event) {
+      case 'INITIAL_SESSION':
+        console.log('🔄 Initial session loaded')
+        break
+      case 'SIGNED_IN':
+        console.log('✅ User signed in:', session?.user?.email)
+        if (session?.user) {
+          await logSecurityEventSafe(session.user.id, 'successful_login')
+        }
+        break
+      case 'SIGNED_OUT':
+        console.log('👋 User signed out')
+        await logSecurityEventSafe(null, 'logout')
+        break
+      case 'TOKEN_REFRESHED':
+        console.log('🔄 Token refreshed')
+        break
+      case 'USER_UPDATED':
+        console.log('👤 User updated')
+        break
+      case 'PASSWORD_RECOVERY':
+        console.log('🔐 Password recovery')
+        break
+      default:
+        console.log('🔄 Auth event:', event)
+    }
+    
+    // If we're not loading anymore, we're initialized
+    if (!isInitialized) {
+      setIsInitialized(true)
+      setIsLoading(false)
+    }
+  })
 
-    return subscription
-  }
+  return subscription
+}
 
   /**
    * FIXED: Enhanced User Registration with Working Utility Functions
@@ -393,64 +429,23 @@ export function AuthProvider({ children }: AuthProviderProps): React.JSX.Element
     }
   }
 
+  /**
+   * FIXED: Let ONLY the auth listener update state
+   */
   const signOut = async (): Promise<void> => {
-  try {
-    console.log('🚪 Starting enhanced logout...')
-    
-    // Step 1: Clear auth data from Supabase and storage
-    const cleared = await clearAllAuthData()
-    
-    if (cleared) {
-      console.log('✅ Auth data cleared successfully')
-    } else {
-      console.warn('⚠️ Auth data cleared with warnings')
-    }
-    
-    // Step 2: Force immediate state update
-    setSession(null)
-    setUser(null)
-    
-    // Step 3: Wait a moment for state to propagate
-    await new Promise(resolve => setTimeout(resolve, 100))
-    
-    // Step 4: FORCE navigation using expo-router
     try {
-      const { router } = require('expo-router')
-      console.log('🔄 Forcing navigation to login...')
-      router.replace('/auth/login')
-      console.log('✅ Navigation forced successfully')
-    } catch (routerError) {
-      console.error('❌ Router navigation failed:', routerError)
+      console.log('🚪 Starting auth-listener-only logout...')
       
-      // Alternative: Try resetting the entire navigation stack
-      try {
-        const { router } = require('expo-router')
-        router.dismissAll()
-        router.replace('/')
-        console.log('✅ Navigation reset attempted')
-      } catch (resetError) {
-        console.error('❌ Navigation reset failed:', resetError)
-      }
-    }
-    
-    console.log('✅ Enhanced logout completed')
-    
-  } catch (error) {
-    console.error('❌ Enhanced logout error:', error)
-    
-    // Even if there's an error, force logout and redirect
-    setSession(null)
-    setUser(null)
-    
-    // Emergency navigation
-    try {
-      const { router } = require('expo-router')
-      router.replace('/auth/login')
-    } catch (emergencyError) {
-      console.error('❌ Emergency navigation failed:', emergencyError)
+      // ONLY call supabase signout - let auth listener handle ALL state updates
+      await supabase.auth.signOut()
+      console.log('✅ Supabase signout completed - auth listener will update state')
+      
+      // DO NOT update React state here - causes conflicts!
+      
+    } catch (error) {
+      console.error('❌ Logout error:', error)
     }
   }
-}
 
   /**
    * Enhanced Session Management (unchanged)

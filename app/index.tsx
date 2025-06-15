@@ -11,11 +11,10 @@ import { StatusBar } from 'expo-status-bar';
 import { useAuth } from '../lib/auth';
 
 /**
- * FIXED: Main App Index with Enhanced Routing Responsiveness
+ * FIXED: Main App Index with Immediate Logout Navigation
  * 
- * This now properly responds to auth state changes immediately,
- * including logout events, ensuring users are routed correctly
- * in real-time based on their authentication status.
+ * Enhanced to handle logout events immediately without
+ * routing protection delays that were preventing navigation.
  */
 
 interface UserStatus {
@@ -32,19 +31,41 @@ export default function AppIndex() {
   const [isRouting, setIsRouting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // ENHANCED: More responsive auth state monitoring
-  useEffect(() => {
-    console.log('🔄 Auth state changed, re-evaluating routing...')
-    console.log('isInitialized:', isInitialized, 'isLoading:', isLoading, 'user:', !!user, 'session:', !!session, 'isRouting:', isRouting)
-    
-    // Only route when auth is fully initialized and not currently routing
-    if (isInitialized && !isLoading && !isRouting) {
-      console.log('✅ Conditions met, checking user status and routing...')
-      checkUserStatusAndRoute()
-    } else {
-      console.log('⏳ Waiting for auth initialization or routing in progress...')
-    }
-  }, [isInitialized, isLoading, user, session, isRouting]) // Enhanced dependency array
+  // ADD THIS: Component lifecycle debugging
+  console.log('🏠 INDEX.TSX - Component render triggered')
+  console.log('🏠 INDEX.TSX - Current state:', { 
+    user: !!user, 
+    session: !!session, 
+    isInitialized, 
+    isLoading 
+  })
+
+  // ENHANCED: Immediate logout detection and navigation
+useEffect(() => {
+  console.log('🔄 Auth state changed, re-evaluating routing...')
+  console.log('isInitialized:', isInitialized, 'isLoading:', isLoading, 'user:', !!user, 'session:', !!session, 'isRouting:', isRouting)
+  
+  // DEBUGGING: Let's see the actual values
+  console.log('🐛 DEBUG user object:', user ? 'EXISTS' : 'NULL')
+  console.log('🐛 DEBUG session object:', session ? 'EXISTS' : 'NULL')
+  console.log('🐛 DEBUG useEffect triggered by auth change')
+
+  // IMMEDIATE LOGOUT HANDLING - Bypass ALL protections for logout
+  if (isInitialized && !user && !session) {
+    console.log('🚨 IMMEDIATE LOGOUT DETECTED - Forcing navigation to login')
+    setIsRouting(false) // Reset routing state immediately
+    router.replace('/auth/login')
+    return
+  }
+  
+  // Only route when auth is fully initialized and not currently routing
+  if (isInitialized && !isLoading && !isRouting) {
+    console.log('✅ Conditions met, checking user status and routing...')
+    checkUserStatusAndRoute()
+  } else {
+    console.log('⏳ Waiting for auth initialization or routing in progress...')
+  }
+}, [isInitialized, isLoading, user, session]) // Removed isRouting from dependencies for logout
 
   const checkUserStatusAndRoute = async () => {
     try {
@@ -107,7 +128,7 @@ export default function AppIndex() {
         }
       }
 
-      routeUser(realUserStatus);
+      await routeUser(realUserStatus);
 
     } catch (err) {
       console.error('❌ Error checking user status:', err);
@@ -134,14 +155,39 @@ export default function AppIndex() {
     }
   };
 
-  // ENHANCED: More responsive routing with better logging
-  const routeUser = (status: UserStatus) => {
+  // ENHANCED: Aggressive routing with multiple fallback methods
+  const routeUser = async (status: UserStatus) => {
     console.log('🚦 Enhanced routing user based on status:', status);
 
     if (!status.isAuthenticated) {
-      // User not authenticated - redirect to login
+      // User not authenticated - MULTIPLE NAVIGATION ATTEMPTS
       console.log('🔑 Routing to authentication (user logged out or session invalid)');
-      router.replace('/auth/login');
+      
+      try {
+        // Method 1: Standard replace
+        router.replace('/auth/login');
+        
+        // Method 2: Small delay then try again (fallback)
+        setTimeout(() => {
+          console.log('🔄 Fallback navigation attempt to login');
+          router.replace('/auth/login');
+        }, 100);
+        
+        // Method 3: Additional fallback after longer delay
+        setTimeout(() => {
+          console.log('🔄 Final fallback navigation attempt to login');
+          router.replace('/auth/login');
+        }, 500);
+        
+      } catch (navigationError) {
+        console.error('❌ Navigation to login failed:', navigationError);
+        // Force navigation using push as last resort
+        try {
+          router.push('/auth/login');
+        } catch (pushError) {
+          console.error('❌ Push navigation also failed:', pushError);
+        }
+      }
       return;
     }
 
