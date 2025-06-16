@@ -225,7 +225,7 @@ export default function EnhancedSettingsScreen() {
         .from('user_preferences')
         .select('*')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
       if (prefError && prefError.code !== 'PGRST116') {
         console.error('❌ Error loading preferences:', prefError);
@@ -237,7 +237,7 @@ export default function EnhancedSettingsScreen() {
         .from('user_consent')
         .select('*')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
       if (consentError && consentError.code !== 'PGRST116') {
         console.error('❌ Error loading consent:', consentError);

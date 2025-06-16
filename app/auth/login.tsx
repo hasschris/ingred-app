@@ -59,8 +59,10 @@ const handleLogin = async () => {
 
     if (result.success) {
       console.log('✅ Login successful!');
-      // DO NOT NAVIGATE HERE - let AuthProvider/index.tsx handle routing
-      // The auth state change will automatically trigger navigation
+      // Small delay to prevent navigation race condition
+      setTimeout(() => {
+        router.replace('/');
+      }, 100);
     } else {
       Alert.alert(
         'Login Failed',

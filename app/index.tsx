@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { supabase } from '../lib/supabase';
 import {
   View,
   Text,
@@ -92,36 +93,34 @@ useEffect(() => {
         console.log('🔍 Checking onboarding status...');
         
         try {
-          // Import supabase here to avoid circular dependencies
-          const { supabase } = await import('../lib/supabase');
           
           // Check if user has completed onboarding
-          const { data: preferences, error: prefError } = await supabase
-            .from('user_preferences')
-            .select('id')
-            .eq('user_id', user.id)
-            .single();
+        const { data: preferences, error: prefError } = await supabase
+          .from('user_preferences')
+          .select('id')
+          .eq('user_id', user.id)
+          .maybeSingle(); // Use maybeSingle() instead of single()
 
-          if (!prefError && preferences) {
-            realUserStatus.onboardingCompleted = true;
-            console.log('✅ Onboarding completed');
-          } else {
-            console.log('ℹ️ Onboarding not completed');
-          }
+        if (preferences) {
+          realUserStatus.onboardingCompleted = true;
+          console.log('✅ Onboarding completed');
+        } else {
+          console.log('ℹ️ Onboarding not completed');
+        }
 
-          // Check legal consent
-          const { data: consent, error: consentError } = await supabase
-            .from('user_consent')
-            .select('id')
-            .eq('user_id', user.id)
-            .single();
+        // Check legal consent
+        const { data: consent, error: consentError } = await supabase
+          .from('user_consent')
+          .select('id')
+          .eq('user_id', user.id)
+          .maybeSingle(); // Use maybeSingle() instead of single()
 
-          if (!consentError && consent) {
-            realUserStatus.legalConsentRecorded = true;
-            console.log('✅ Legal consent recorded');
-          } else {
-            console.log('ℹ️ Legal consent not recorded');
-          }
+        if (consent) {
+          realUserStatus.legalConsentRecorded = true;
+          console.log('✅ Legal consent recorded');
+        } else {
+          console.log('ℹ️ Legal consent not recorded');
+        }
         } catch (dbError) {
           console.warn('⚠️ Could not check onboarding status:', dbError);
           // Continue with basic auth check

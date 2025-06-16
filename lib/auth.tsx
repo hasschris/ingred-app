@@ -159,21 +159,6 @@ export function AuthProvider({ children }: AuthProviderProps): React.JSX.Element
       }, 300)
     }
     
-    if (event === 'SIGNED_IN' && session?.user) {
-      console.log('🚨 LOGIN DETECTED IN AUTH PROVIDER - Forcing navigation')
-      // Longer delay to ensure auth is fully processed
-      setTimeout(() => {
-        try {
-          const { router } = require('expo-router')
-          // Navigate to index, let it handle routing to tabs
-          router.push('/')
-          console.log('✅ Login navigation successful from AuthProvider')
-        } catch (navError) {
-          console.error('❌ Login navigation failed:', navError)
-        }
-      }, 300)
-    }
-    
     // Handle different auth events (logging only)
     switch (event) {
       case 'INITIAL_SESSION':
