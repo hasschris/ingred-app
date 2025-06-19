@@ -169,7 +169,18 @@ export function AuthProvider({ children }: AuthProviderProps): React.JSX.Element
         if (session?.user) {
           await logSecurityEventSafe(session.user.id, 'successful_login')
         }
+        // Navigate away from the login screen after a short delay
+        setTimeout(() => {
+          try {
+            const { router } = require('expo-router')
+            router.replace('/') // or router.replace('/(tabs)') if that's your home
+            console.log('✅ Login navigation successful from AuthProvider')
+          } catch (navError) {
+            console.error('❌ Login navigation failed:', navError)
+          }
+        }, 300)
         break
+
       case 'SIGNED_OUT':
         console.log('👋 User signed out')
         await logSecurityEventSafe(null, 'logout')

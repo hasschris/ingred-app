@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useAuth, getUserIP, getUserAgent } from '../../lib/auth';
+import { useAuth } from '../../lib/auth';
+import { getUserIP, getUserAgent } from '../../lib/ai-integration';
 
 /**
  * Registration Screen with Industry-Leading Legal Compliance
